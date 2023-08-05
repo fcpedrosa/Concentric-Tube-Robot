@@ -2,7 +2,7 @@
 
 ### Concentric Tube Robot Kinematics -- C++ Static Library
 
-![CTR Robot](https://github.com/fcpedrosa/Concentric-Tube-Robot/images/CTR_Assembly.png)
+![CTR Robot](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/images/CTR_Assembly.png)
 
 </div>
 
@@ -36,7 +36,7 @@ This C++ static library provides a barebone implementation of the forward and in
 - Easy-to-use API for integrating the library into your C++ projects.
 - Comprehensive documentation explaining the kinematic model and usage of the library.
 
-![Backbone Shape](https://github.com/fcpedrosa/Concentric-Tube-Robot/images/Backbone.png)
+![Backbone Shape](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/images/Backbone.png)
 
 ## Installation
 
