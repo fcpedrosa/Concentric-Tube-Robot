@@ -1,6 +1,6 @@
 # C++ Concentric Tube Robot Kinematics Library
 
-![Robot Arm](link_to_your_robot_arm_image.jpg)
+![Robot Arm](https://drive.google.com/file/d/1JG_TEgWo15-uIoW0uRBfLdJjFkRGMBR6/view?usp=drive_link)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/LICENSE)
 [![Build Status](https://travis-ci.com/yourusername/repo-name.svg?branch=main)](https://github.com/fcpedrosa/Concentric-Tube-Robot)
@@ -73,11 +73,85 @@ Download the precompiled binaries for your platform from the [Releases](https://
 To use the library in your C++ project, you need to include the necessary header files and link against the library. Here's a simple example:
 
 ```cpp
-#include <CTR.hpp>
+#include <iostream>
+// include the CTR library header
+#include "CTR.hpp"
 
-int main() {
-    // Your code here
-    return 0;
+int main()
+{	
+	//  # # # # # # # # ---- Properties of Nitinol Tubes ---- # # # # # # # #
+	double E = 58.00E9; // Young's modulus GPa
+	double G = 25.50E9; // Shear modulus GPa
+
+	// Precurvature radii for the tubes
+	double R1 = 0.04; // (4cm curvature radius)
+	double R2 = 0.10; // (10 cm curvature radius)
+	double R3 = 0.14;  // (14 cm curvature radius)
+
+	// -- ** -- Precurvature vectors (for curved portions of the tubes) -- ** -- [u_x* u_y* 0]
+	blaze::StaticVector<double, 3UL> u1, u2, u3;
+	u1 = {1.00 / R1, 0.00, 0.00};
+	u2 = {1.00 / R2, 0.00, 0.00};
+	u3 = {1.00 / R3, 0.00, 0.00};
+
+    // defining the kinematic parameters of the robot
+	blaze::StaticVector<double, 3UL> ls, lc, OD, ID;
+	// --** --Lengths of the tubes' straight sections (meters) -- ** --
+	ls = {190.00E-3, 120.00E-3, 90.00E-3}; // 190, 120, 100
+
+	// --** --Lengths of the tubes' curved sections (meters) -- ** --
+	lc = {60.00E-3, 80.00E-3, 40.00E-3}; // 60, 80, 50;
+
+	// --** --Outer and Inner diameters of the tubes (meters)--** --
+	OD = {0.92e-3, 1.10E-3, 1.40E-3};
+	ID = {0.80E-3, 0.97e-3, 1.20E-3};
+
+	// # # # # # ---- Instantiating the three Tube objects ---- # # # # #
+	std::shared_ptr<Tube> T1 = std::make_shared<Tube>(OD[0UL], ID[0UL], E, G, ls[0UL], lc[0UL], u1); // innermost tube
+	std::shared_ptr<Tube> T2 = std::make_shared<Tube>(OD[1UL], ID[1UL], E, G, ls[1UL], lc[1UL], u2); // intermediate tube
+	std::shared_ptr<Tube> T3 = std::make_shared<Tube>(OD[2UL], ID[2UL], E, G, ls[2UL], lc[2UL], u3); // outermost tube
+
+	// instantiating an array of smart pointers to CTR component tubes
+	std::array<std::shared_ptr<Tube>, 3UL> Tb = {T1, T2, T3};
+
+	// initial joint actuation values "home position" - q = [Beta Alpha]
+	blaze::StaticVector<double, 3UL> Beta_0 = {-120.00E-3, -100.00E-3, -80.00E-3}; // 130, 100, 50 | 130, 100, 
+	blaze::StaticVector<double, 3UL> Alpha_0 = {mathOp::deg2Rad(0.00), mathOp::deg2Rad(0.00), mathOp::deg2Rad(0.00)};
+
+	blaze::StaticVector<double, 6UL> q_0;
+	blaze::subvector<0UL, 3UL>(q_0) = Beta_0;
+	blaze::subvector<3UL, 3UL>(q_0) = Alpha_0;
+
+	// Determining the accuracy of BVP solutions
+	double Tol = 1.00E-6;
+
+	// tolerance for position control (0.5 mm)
+	double pos_tol = 5.00E-4;
+
+	// # # # # # ---- Instantiating the CTR object ---- # # # # #
+	CTR CTR_robot(Tb, q_0, Tol, mathOp::rootFindingMethod::MODIFIED_NEWTON_RAPHSON);
+
+	// initial guess for the BVP
+	blaze::StaticVector<double, 5UL> initGuess;
+
+	// Actuates the robot to the configuration q_0 and solves the corresponding FK problem
+	CTR_robot.actuate_CTR(initGuess, q_0);	
+
+	// Testing the differential kinematics-based position control for the CTR
+	blaze::StaticVector<double, 3UL> target = { -0.053210, 0.043606, 0.179527 }, tip_pos;
+
+	// inverse kinematics
+	CTR_robot.posCTRL(initGuess, target, pos_tol);
+	
+	tip_pos = CTR_robot.getTipPos();
+	
+	std::cout << "Target is: " << blaze::trans(target) 
+			  << "Tip position is: " << blaze::trans(tip_pos) 
+			  << "Joint values (IK solution): " << blaze::trans(CTR_robot.getConfiguration()) 
+			  << "Position error: " << blaze::norm( tip_pos - target ) 
+			  << std::endl;
+	
+	return 0;
 }
 ```
 
