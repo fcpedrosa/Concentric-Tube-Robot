@@ -1,0 +1,16 @@
+# ignores the directory containing the VSCode configuration files
+.vscode/*
+
+#ignores the build directory
+build/*
+
+#ignores compiler's cache info
+.cache/
+
+# ignores dependence files
+*.d
+
+# ignores specific files
+*.o
+*.json
+*core*
