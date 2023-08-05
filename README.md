@@ -1,6 +1,6 @@
-# C++ Concentric Tube Robot Kinematics Library
+# Concentric Tube Robot Kinematics -- C++ Static Library
 
-![Robot Arm](https://drive.google.com/file/d/1JG_TEgWo15-uIoW0uRBfLdJjFkRGMBR6/view?usp=drive_link)
+![CTR Robot](https://drive.google.com/file/d/1JG_TEgWo15-uIoW0uRBfLdJjFkRGMBR6/view?usp=drive_link)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/LICENSE)
 [![Build Status](https://travis-ci.com/yourusername/repo-name.svg?branch=main)](https://github.com/fcpedrosa/Concentric-Tube-Robot)
