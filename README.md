@@ -141,6 +141,14 @@ int main()
 	// initial guess for the BVP
 	blaze::StaticVector<double, 5UL> initGuess;
 
+    // You can set external wrenches acting as point loads on the distal ends of the robot as
+    blaze::StaticVector<double, 3UL> moment = {0.00, -0.05, 0.00}, force = {0.00, -0.15, -0.55};
+    
+    // setting the external point moment
+    CTR_robot.setDistalMoment(moment);
+    // setting the external point force
+    CTR_robot.setDistalForce(force);
+
 	// Actuates the robot to the configuration q_0 and solves the corresponding FK problem
 	CTR_robot.actuate_CTR(initGuess, q_0);
 
