@@ -11,6 +11,15 @@ build/*
 *.d
 
 # ignores specific files
-*.o
 *.json
 *core*
+
+# Ignore OS-specific files
+Thumbs.db
+.DS_Store
+
+# Ignore compiled object files and executables
+*.o
+*.obj
+*.exe
+*.out
