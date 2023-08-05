@@ -8,7 +8,7 @@
 #include "CTR.hpp"
 
 int main()
-{	
+{
 	//  # # # # # # # # ---- Properties of Nitinol Tubes ---- # # # # # # # #
 	double E = 58.00E9; // Young's modulus GPa
 	double G = 25.50E9; // Shear modulus GPa
@@ -16,7 +16,7 @@ int main()
 	// Precurvature radii for the tubes
 	double R1 = 0.04; // (4cm curvature radius)
 	double R2 = 0.10; // (10 cm curvature radius)
-	double R3 = 0.14;  // (14 cm curvature radius)
+	double R3 = 0.14; // (14 cm curvature radius)
 
 	// -- ** -- Precurvature vectors (for curved portions of the tubes) -- ** -- [u_x* u_y* 0]
 	blaze::StaticVector<double, 3UL> u1, u2, u3;
@@ -44,7 +44,7 @@ int main()
 	std::array<std::shared_ptr<Tube>, 3UL> Tb = {T1, T2, T3};
 
 	// initial joint actuation values "home position" - q = [Beta Alpha]
-	blaze::StaticVector<double, 3UL> Beta_0 = {-120.00E-3, -100.00E-3, -80.00E-3}; // 130, 100, 50 | 130, 100, 
+	blaze::StaticVector<double, 3UL> Beta_0 = {-120.00E-3, -100.00E-3, -80.00E-3}; // 130, 100, 50 | 130, 100,
 	blaze::StaticVector<double, 3UL> Alpha_0 = {mathOp::deg2Rad(0.00), mathOp::deg2Rad(0.00), mathOp::deg2Rad(0.00)};
 
 	blaze::StaticVector<double, 6UL> q_0;
@@ -73,18 +73,18 @@ int main()
 			  << CTR_robot.getTipPos() << std::endl;
 
 	// >>> Actuating the CTR to different configuration
-	blaze::StaticVector<double, 3UL> target = { -0.053210, 0.043606, 0.179527 }, tip_pos;
+	blaze::StaticVector<double, 3UL> target = {-0.053210, 0.043606, 0.179527}, tip_pos;
 
 	// inverse kinematics
 	CTR_robot.posCTRL(initGuess, target, pos_tol);
-	
+
 	tip_pos = CTR_robot.getTipPos();
-	
-	std::cout << "Target is: " << blaze::trans(target) 
-			  << "Tip position is: " << blaze::trans(tip_pos) 
-			  << "Joint values (IK solution): " << blaze::trans(CTR_robot.getConfiguration()) 
-			  << "Position error: " << blaze::norm( tip_pos - target ) 
+
+	std::cout << "Target is: " << blaze::trans(target)
+			  << "Tip position is: " << blaze::trans(tip_pos)
+			  << "Joint values (IK solution): " << blaze::trans(CTR_robot.getConfiguration())
+			  << "Position error: " << blaze::norm(tip_pos - target)
 			  << std::endl;
-	
+
 	return 0;
 }
