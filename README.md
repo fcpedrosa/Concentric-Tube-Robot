@@ -1,6 +1,11 @@
-# Concentric Tube Robot Kinematics -- C++ Static Library
+<div align="center">
 
-![CTR Robot](https://drive.google.com/file/d/1JG_TEgWo15-uIoW0uRBfLdJjFkRGMBR6/view?usp=drive_link)
+### Concentric Tube Robot Kinematics -- C++ Static Library
+
+![CTR Robot](https://github.com/fcpedrosa/Concentric-Tube-Robot/images/CTR_Assembly.png)
+
+</div>
+
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/LICENSE)
 [![Build Status](https://travis-ci.com/yourusername/repo-name.svg?branch=main)](https://github.com/fcpedrosa/Concentric-Tube-Robot)
@@ -30,6 +35,8 @@ This C++ static library provides a barebone implementation of the forward and in
 - Implementation of the inverse kinematics of a three-tube CTR.
 - Easy-to-use API for integrating the library into your C++ projects.
 - Comprehensive documentation explaining the kinematic model and usage of the library.
+
+![Backbone Shape](https://github.com/fcpedrosa/Concentric-Tube-Robot/images/Backbone.png)
 
 ## Installation
 
@@ -66,7 +73,7 @@ make -j4
 
 ### Using Precompiled Binaries
 
-Download the precompiled binaries for your platform from the [Releases](https://github.com/fcpedrosa/Concentric-Tube-Robot/releases) section. Add the library to your C++ project's dependencies and include the appropriate header files.
+Download the precompiled binaries for your platform from the [Releases](https://github.com/fcpedrosa/Concentric-Tube-Robot/releases) section (TBA). Add the library to your C++ project's dependencies and include the appropriate header files.
 
 ## Usage
 
@@ -135,7 +142,10 @@ int main()
 	blaze::StaticVector<double, 5UL> initGuess;
 
 	// Actuates the robot to the configuration q_0 and solves the corresponding FK problem
-	CTR_robot.actuate_CTR(initGuess, q_0);	
+	CTR_robot.actuate_CTR(initGuess, q_0);
+
+    // inspect the distal end's position after actuation
+    std::cout << "Tip position: " << blaze::trans(CTR_robot.getTipPos()) << std::endl;	
 
 	// Testing the differential kinematics-based position control for the CTR
 	blaze::StaticVector<double, 3UL> target = { -0.053210, 0.043606, 0.179527 }, tip_pos;
