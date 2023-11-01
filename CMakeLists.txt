@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(ctrOpt VERSION 1.0 LANGUAGES CXX)
+project(CTR_General_Use VERSION 2.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -39,15 +39,6 @@ if (Boost_FOUND)
     message(STATUS "Boost has been found!")
     include_directories(${Boost_INCLUDE_DIRS})
     link_libraries(${Boost_LIBRARIES})
-
-    if (WIN32)
-        # disable autolinking in boost
-        add_definitions( -DBOOST_ALL_NO_LIB )  
-        # asks Boost to report information about automatic linking requests on Visual Studio
-        add_definitions(${Boost_LIB_DIAGNOSTIC_DEFINITIONS})
-        # force all boost libraries to dynamic link
-        add_definitions( -DBOOST_ALL_DYN_LINK )
-    endif()
 elseif(NOT Boost_FOUND)
     error(STATUS "Boost has not been found!")
 endif()

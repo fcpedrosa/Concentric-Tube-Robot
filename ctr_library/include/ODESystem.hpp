@@ -25,7 +25,7 @@ public:
 	ODESystem(ODESystem &&rhs) noexcept;
 
 	// ODESystem destructor
-	~ODESystem();
+	~ODESystem() = default;
 
 	// Copy assignment operator
 	ODESystem &operator=(const ODESystem &rhs);

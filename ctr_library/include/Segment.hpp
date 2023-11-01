@@ -30,7 +30,7 @@ public:
 	Segment(Segment &&rhs) noexcept;
 
 	// Segment desctructor
-	~Segment();
+	~Segment() = default;
 
 	// copy assignment operator
 	Segment &operator=(const Segment &rhs);
