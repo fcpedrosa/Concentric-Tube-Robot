@@ -1,9 +1,5 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
-#include <boost/config.hpp>
-#ifdef BOOST_MSVC
-#pragma warning(disable : 4996)
-#endif
 
 #include "CTR.hpp"
 
@@ -53,12 +49,6 @@ CTR::CTR(CTR &&rhs) noexcept
 		this->m_stateEquations = std::move(rhs.m_stateEquations);
 		this->m_stateObserver = std::move(rhs.m_stateObserver);
 	}
-}
-
-// CTR destructor
-CTR::~CTR()
-{
-	// nothing to be done as smart pointers are being used
 }
 
 // copy assignment operator
@@ -340,8 +330,8 @@ bool CTR::PowellDogLeg(blaze::StaticVector<double, 5UL> &initGuess)
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 30.00); });
-		// u1_x(0) = u1_y(0) = 0.00;
+																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
+		// mb_x(0) = mb_y(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
 
@@ -443,8 +433,8 @@ bool CTR::Levenberg_Marquardt(blaze::StaticVector<double, 5UL> &initGuess)
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 30.00); });
-		// u1_x(0) = u1_y(0) = 0.00;
+																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
+		// mb_x(0) = mb_y(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
 
@@ -504,7 +494,7 @@ bool CTR::Broyden(blaze::StaticVector<double, 5UL> &initGuess)
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 30.00); });
+																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
 		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
@@ -581,8 +571,8 @@ bool CTR::Broyden_II(blaze::StaticVector<double, 5UL> &initGuess)
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 30.00); });
-		// u1_x(0) = u1_y(0) = 0.00;
+																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
+		// mb_x(0) = mb_y(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
 
@@ -660,7 +650,7 @@ bool CTR::Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 30.00); });
+																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
 		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
@@ -722,7 +712,7 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-														   { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 30.00); });
+														   { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
 		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
@@ -787,7 +777,7 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 			{
 				j++;
 				f = this->ODESolver(initGuess - blaze::pow(0.50, j) * d);
-				if (j > 30UL)
+				if (j > 20UL)
 				{
 					initGuess *= 0.75;
 					readjustInitialGuesses(initGuess);
@@ -891,14 +881,14 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 	// proportional, derivative, and integral gains for position control
 	blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL>> Kp, Kd, Ki;
 	blaze::diagonal(Kp) = 1.000; // 1.000
-	blaze::diagonal(Ki) = 0.100; // 0.100
+	blaze::diagonal(Ki) = 0.050; // 0.100
 	blaze::diagonal(Kd) = 0.001; // 0.010
 
 	// zeroes |mb_x(0)|, |mb_y(0)|and limits the values of |u1_z(0)|, |u2_z(0)| and |u3_z(0)| to avoid numerical instability and lack of convergence
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-														   { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 30.00); });
+														   { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
 		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};

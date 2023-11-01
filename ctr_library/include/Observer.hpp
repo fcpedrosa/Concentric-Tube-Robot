@@ -18,6 +18,9 @@ public:
 	// overloaded class constructor
 	Observer(std::vector<state_type> &states, std::vector<double> &s) : m_states(states), m_arcLength(s) {}
 
+	// class destructor
+	~Observer() = default;
+
 	// observer functor for capturing data from Boost::odeInt integrator
 	void operator()(const state_type &states, double s);
 };

@@ -33,12 +33,6 @@ ODESystem::ODESystem(ODESystem &&rhs) noexcept
 	}
 }
 
-// ODESystem destructor
-ODESystem::~ODESystem()
-{
-	// nothing to be done
-}
-
 // Copy assignment operator
 ODESystem &ODESystem::operator=(const ODESystem &rhs)
 {
@@ -135,7 +129,7 @@ void ODESystem::operator()(const state_type &y, state_type &dyds, const double s
 	computeTwists(2UL, u3);
 
 	// internal moment of tube 1 along the x and y directions
-	blaze::subvector<0UL, 2UL>(dyds) = blaze::subvector<0UL, 2UL>(-mathOp::hatOperator(u1) * mb - mathOp::hatPreMultiply(m_e3, blaze::trans(R1)) * this->m_f); // - u^mb - e3^R1'F
+	blaze::subvector<0UL, 2UL>(dyds) = blaze::subvector<0UL, 2UL>( -blaze::cross(u1, mb) - mathOp::hatPreMultiply(m_e3, blaze::trans(R1)) * this->m_f); // - u^mb - e3^R1'F
 
 	// spatial derivative of the quaternion representation h_dot
 	blaze::subvector<11UL, 4UL>(dyds) = mathOp::quaternionDiff(u1, blaze::subvector<11UL, 4UL>(y));

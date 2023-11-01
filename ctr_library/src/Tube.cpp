@@ -33,13 +33,7 @@ Tube::Tube(double OD, double ID, double E, double G, double ls, double lc, const
 
 // copy constructor
 Tube::Tube(const Tube &rhs) : m_OD(rhs.m_OD), m_ID(rhs.m_ID), m_E(rhs.m_E), m_I(rhs.m_I), m_G(rhs.m_G),
-							  m_J(rhs.m_J), m_K(rhs.m_K), m_ls(rhs.m_ls), m_lc(rhs.m_lc), m_u_ast(rhs.m_u_ast){};
-
-// Tube destructor
-Tube::~Tube()
-{
-	// nothing to be done
-}
+							  m_J(rhs.m_J), m_K(rhs.m_K), m_ls(rhs.m_ls), m_lc(rhs.m_lc), m_u_ast(rhs.m_u_ast){}
 
 // move constructor
 Tube::Tube(Tube &&rhs) noexcept

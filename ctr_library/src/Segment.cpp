@@ -1,18 +1,7 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 #include "Segment.hpp"
-
-//default class constructor
-Segment::Segment()
-{
-	m_S.clear();
-	m_EI.reset();
-	m_GJ.reset();
-	m_U_x.reset();
-	m_U_y.reset();
-	m_len_curv = {0.00, 0.00, 0.00};
-	m_dist_end = {0.00, 0.00, 0.00};
-}
+#include <algorithm>
 
 // overloaded constructor
 Segment::Segment(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, const blaze::StaticVector<double, 3UL> &beta)
@@ -38,11 +27,6 @@ Segment::Segment(Segment &&rhs) noexcept
 		this->m_len_curv = std::move(rhs.m_len_curv);
 		this->m_dist_end = std::move(rhs.m_dist_end);
 	}
-}
-
-Segment::~Segment()
-{
-	// nothing to be done
 }
 
 // copy assignment operator
@@ -83,19 +67,28 @@ Segment &Segment::operator=(Segment &&rhs) noexcept
 void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, const blaze::StaticVector<double, 3UL> &beta)
 {
 	// vector of overall length of each tube
-	std::array<double, 3UL> tb_len;
+	std::array<double, 3UL> tb_len = {
+		Tb[0UL]->getTubeLength(),
+		Tb[1UL]->getTubeLength(),
+		Tb[2UL]->getTubeLength()};
+
+	// arc-length at which the ith tube ends -- Innermost tube
+	this->m_dist_end[0UL] = tb_len[0UL] + beta[0UL];
+	// arc-length at which the curved segment of each tube starts  -- Innermost tube
+	this->m_len_curv[0UL] = this->m_dist_end[0UL] - Tb[0UL]->getCurvLen();
+
+	// arc-length at which the ith tube ends -- Intermediate tube
+	this->m_dist_end[1UL] = tb_len[1UL] + beta[1UL];
+	// arc-length at which the curved segment of each tube starts  -- Intermediate tube
+	this->m_len_curv[1UL] = this->m_dist_end[1UL] - Tb[1UL]->getCurvLen();
+
+	// arc-length at which the ith tube ends -- Outermost tube
+	this->m_dist_end[2UL] = tb_len[2UL] + beta[2UL];
+	// arc-length at which the curved segment of each tube starts  -- Outermost tube
+	this->m_len_curv[2UL] = this->m_dist_end[2UL] - Tb[2UL]->getCurvLen();
+
 	// clearing tube transition points
 	this->m_S.clear();
-
-	for (size_t i = 0UL; i < 3UL; ++i)
-	{
-		// ith tube overall length
-		tb_len[i] = Tb[i]->getTubeLength();
-		// arc-length at which the ith tube ends
-		this->m_dist_end[i] = tb_len[i] + beta[i];
-		// arc-length at which the curved segment of each tube starts
-		this->m_len_curv[i] = this->m_dist_end[i] - Tb[i]->getCurvLen();
-	}
 
 	const double TOLERANCE = 1.00E-7;
 	auto compare = [&](double a, double b) -> bool
@@ -113,7 +106,7 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 	std::sort(this->m_S.begin(), this->m_S.end());
 	// acquiring the unique landmark points only
 	auto it = std::unique(this->m_S.begin(), this->m_S.end(), compare); // tolerance used to allow for small differences due to precision limitations
-	
+
 	// deleting any repeated elements
 	this->m_S.erase(it, this->m_S.end());
 
@@ -130,6 +123,7 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 	size_t b, c, span;
 	double element;
 	std::vector<double>::iterator it_b, it_c;
+	auto sBegin = this->m_S.begin();
 
 	// determining the indexes correponding to tube transitions
 	for (size_t i = 0UL; i < 3UL; ++i)
@@ -137,15 +131,15 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 		// transition points (straight -> curved sections)
 		element = this->m_len_curv[i];
 		// finds where curved section of the i-th starts
-		it_b = std::lower_bound(this->m_S.begin(), this->m_S.end(), element - TOLERANCE); // tolerance used to allow for small differences due to precision limitations
+		it_b = std::lower_bound(sBegin, this->m_S.end(), element - TOLERANCE); // tolerance used to allow for small differences due to precision limitations
 
 		// transition points -> distal ends
 		element = m_dist_end[i];
 		// finds where i-th tube ends
-		it_c = std::lower_bound(this->m_S.begin(), this->m_S.end(), element - TOLERANCE); // tolerance used to allow for small differences due to precision limitations
+		it_c = std::lower_bound(sBegin, this->m_S.end(), element - TOLERANCE); // tolerance used to allow for small differences due to precision limitations
 
-		b = std::distance(this->m_S.begin(), it_b);
-		c = std::distance(this->m_S.begin(), it_c);
+		b = std::distance(sBegin, it_b);
+		c = std::distance(sBegin, it_c);
 
 		// populating the output matrices accordingly
 		blaze::submatrix(this->m_EI, i, 0UL, 1UL, c) = Tb[i]->getK(1); // bending stiffness
@@ -171,7 +165,7 @@ std::vector<double> Segment::get_S()
 // getter method for returning the distal ends of all CTR tubes
 blaze::StaticVector<double, 3UL> Segment::getDistalEnds()
 {
-	blaze::StaticVector<double, 3UL> distalEnds = { this->m_dist_end[0UL], this->m_dist_end[1UL], this->m_dist_end[2UL] };
+	blaze::StaticVector<double, 3UL> distalEnds = {this->m_dist_end[0UL], this->m_dist_end[1UL], this->m_dist_end[2UL]};
 	return distalEnds;
 }
 

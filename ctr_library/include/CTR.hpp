@@ -36,7 +36,7 @@ public:
 	noexcept;
 
 	// CTR destructor
-	~CTR();
+	~CTR() = default;
 
 	// copy assignment operator
 	CTR &operator=(const CTR &rhs);

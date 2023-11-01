@@ -30,7 +30,7 @@ public:
 	Tube(double OD, double ID, double E, double G, double ls, double lc, const blaze::StaticVector<double, 3UL> &u_ast);
 
 	// Tube desctructor
-	~Tube();
+	~Tube() = default;
 
 	// copy constructor
 	Tube(const Tube &rhs);

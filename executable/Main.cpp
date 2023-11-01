@@ -5,6 +5,7 @@
 #endif
 
 #include <iostream>
+#include <chrono>
 #include "CTR.hpp"
 
 int main()
@@ -14,9 +15,9 @@ int main()
 	double G = 25.50E9; // Shear modulus GPa
 
 	// Precurvature radii for the tubes
-	double R1 = 0.04; // (4cm curvature radius)
-	double R2 = 0.10; // (10 cm curvature radius)
-	double R3 = 0.14; // (14 cm curvature radius)
+	double R1 = 40.000E-3; // (4cm curvature radius)
+	double R2 = 100.00E-3; // (10 cm curvature radius)
+	double R3 = 140.00E-3; // (14 cm curvature radius)
 
 	// -- ** -- Precurvature vectors (for curved portions of the tubes) -- ** -- [u_x* u_y* 0]
 	blaze::StaticVector<double, 3UL> u1, u2, u3;
