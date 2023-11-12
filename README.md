@@ -91,27 +91,25 @@ int main()
 	double G = 25.50E9; // Shear modulus GPa
 
 	// Precurvature radii for the tubes
-	double R1 = 0.04; // (4cm curvature radius)
-	double R2 = 0.10; // (10 cm curvature radius)
-	double R3 = 0.14;  // (14 cm curvature radius)
+	double R1 = 40.00E-3; // (4cm curvature radius)
+	double R2 = 10.00E-3; // (10 cm curvature radius)
+	double R3 = 14.00E-3;  // (14 cm curvature radius)
 
 	// -- ** -- Precurvature vectors (for curved portions of the tubes) -- ** -- [u_x* u_y* 0]
-	blaze::StaticVector<double, 3UL> u1, u2, u3;
-	u1 = {1.00 / R1, 0.00, 0.00};
-	u2 = {1.00 / R2, 0.00, 0.00};
-	u3 = {1.00 / R3, 0.00, 0.00};
+	blaze::StaticVector<double, 3UL> u1 = {1.00 / R1, 0.00, 0.00};
+	blaze::StaticVector<double, 3UL> u2 = {1.00 / R2, 0.00, 0.00};
+	blaze::StaticVector<double, 3UL> u3 = {1.00 / R3, 0.00, 0.00};
 
-    // defining the kinematic parameters of the robot
-	blaze::StaticVector<double, 3UL> ls, lc, OD, ID;
+	// defining the kinematic parameters of the robot
 	// --** --Lengths of the tubes' straight sections (meters) -- ** --
-	ls = {190.00E-3, 120.00E-3, 90.00E-3}; // 190, 120, 100
+	blaze::StaticVector<double, 3UL> ls = {190.00E-3, 120.00E-3, 90.00E-3}; // 190, 120, 100
 
 	// --** --Lengths of the tubes' curved sections (meters) -- ** --
-	lc = {60.00E-3, 80.00E-3, 40.00E-3}; // 60, 80, 50;
+	blaze::StaticVector<double, 3UL> lc = {60.00E-3, 80.00E-3, 40.00E-3}; // 60, 80, 50;
 
 	// --** --Outer and Inner diameters of the tubes (meters)--** --
-	OD = {0.92e-3, 1.10E-3, 1.40E-3};
-	ID = {0.80E-3, 0.97e-3, 1.20E-3};
+	blaze::StaticVector<double, 3UL> OD = {0.92e-3, 1.10E-3, 1.40E-3};
+	blaze::StaticVector<double, 3UL> ID = {0.80E-3, 0.97e-3, 1.20E-3};
 
 	// # # # # # ---- Instantiating the three Tube objects ---- # # # # #
 	std::shared_ptr<Tube> T1 = std::make_shared<Tube>(OD[0UL], ID[0UL], E, G, ls[0UL], lc[0UL], u1); // innermost tube
@@ -156,17 +154,17 @@ int main()
     std::cout << "Tip position: " << blaze::trans(CTR_robot.getTipPos()) << std::endl;	
 
 	// Testing the differential kinematics-based position control for the CTR
-	blaze::StaticVector<double, 3UL> target = { -0.053210, 0.043606, 0.179527 }, tip_pos;
+	blaze::StaticVector<double, 3UL> tip_pos, target = { -0.053210, 0.043606, 0.179527 };
 
 	// inverse kinematics
 	CTR_robot.posCTRL(initGuess, target, pos_tol);
 	
 	tip_pos = CTR_robot.getTipPos();
 	
-	std::cout << "Target is: " << blaze::trans(target) 
-			  << "Tip position is: " << blaze::trans(tip_pos) 
-			  << "Joint values (IK solution): " << blaze::trans(CTR_robot.getConfiguration()) 
-			  << "Position error: " << blaze::norm( tip_pos - target ) 
+	std::cout << "Target is: " << blaze::trans(target)
+			  << "Tip position is: " << blaze::trans(tip_pos)
+			  << "Joint values (IK solution): " << blaze::trans(CTR_robot.getConfiguration())
+			  << "Position error: " << blaze::norm(tip_pos - target) * 1.00E3 << " [mm]"
 			  << std::endl;
 	
 	return 0;

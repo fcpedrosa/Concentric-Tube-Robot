@@ -173,7 +173,7 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	 *****************************************************************************
 	 * ========== initializing the initial conditions vector (15 x 1) ========== *
 	 *****************************************************************************
-	*/
+	 */
 
 	// 1st and 2nd element of y are the bending moments in the sheath along the x, y directions (in the local/body frame)
 	y_0[0UL] = initGuess[0UL];
@@ -259,7 +259,7 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 blaze::StaticMatrix<double, 5UL, 5UL> CTR::jac_BVP(const blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 5UL> &residue)
 {
 	blaze::StaticMatrix<double, 5UL, 5UL, blaze::columnMajor> jac_bvp;
-	
+
 	blaze::StaticVector<double, 5UL> initGuessPerturbed(initGuess), residuePerturbed, scaled(initGuess);
 	double incr_scale = 1.00E-7, incr_floor = 1.00E-9; // 1.00E-7, incr_floor = 1.00E-9 ==>> SEEM TO BE OPTIMAL;
 
@@ -290,7 +290,7 @@ blaze::StaticMatrix<double, 3UL, 6UL> CTR::jacobian(const blaze::StaticVector<do
 
 	q_Scaled *= incr_scale;
 	q_Scaled = blaze::generate(6UL, [&](size_t idx)
-							 { return (std::fabs(q_Scaled[idx]) > incr_floor) ? q_Scaled[idx] : incr_floor; });
+							   { return (std::fabs(q_Scaled[idx]) > incr_floor) ? q_Scaled[idx] : incr_floor; });
 
 	for (size_t iter = 0UL; iter <= 5UL; ++iter)
 	{
@@ -712,7 +712,7 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-														   { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
+																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
 		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
@@ -888,7 +888,7 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-														   { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
+																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
 		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
@@ -998,12 +998,8 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 		blaze::subvector<3UL, 3UL>(q) = blaze::map(blaze::subvector<3UL, 3UL>(q), [](double theta)
 												   {
 				static constexpr double TWO_PI = 2.00 * M_PI;
-				double wrappedAngle;
-
-				// wrappedAngle = fmod(theta, TWO_PI);
-				wrappedAngle = remainder(theta, TWO_PI);
-
-				return wrappedAngle; });
+				
+				return std::remainder(theta, TWO_PI); });
 
 		// actuate the CTR to new configuration and retrieve execution timeout status
 		status = this->actuate_CTR(initGuess, q);
@@ -1046,7 +1042,7 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 		}
 
 		// stops the control loop when the position update becomes significantly small
-		if (blaze::norm(dqdt) < 1.00e-8)
+		if (blaze::norm(dqdt) < 1.00E-6)
 		{
 			initGuess = std::move(initGuessMin);
 			this->actuate_CTR(initGuess, q_min);
@@ -1141,7 +1137,7 @@ std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> CTR::g
 	std::vector<double> r_x, r_y, r_z;
 	r_x.reserve(1000UL);
 	r_y.reserve(1000UL);
-	r_y.reserve(1000UL);
+	r_z.reserve(1000UL);
 
 	if (this->m_y.size() > 0UL)
 	{
@@ -1169,12 +1165,12 @@ void CTR::setBVPMethod(mathOp::rootFindingMethod mthd)
 	this->m_method = mthd;
 }
 
-void CTR::setDistalMoment(const blaze::StaticVector<double, 3UL>& moment)
+void CTR::setDistalMoment(const blaze::StaticVector<double, 3UL> &moment)
 {
 	this->m_wm = moment;
 }
 
-void CTR::setDistalForce(const blaze::StaticVector<double, 3UL>& force)
+void CTR::setDistalForce(const blaze::StaticVector<double, 3UL> &force)
 {
 	this->m_wf = force;
 }
