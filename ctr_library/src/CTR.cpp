@@ -804,9 +804,6 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 		// resets the exponent variable j
 		j = 0UL;
 
-		// compute the residue associated to the newly refined initGuess
-		f = this->ODESolver(initGuess);
-
 		// checking the terminating condition
 		if (blaze::linfNorm(f) <= this->m_accuracy)
 		{
