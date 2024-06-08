@@ -31,13 +31,17 @@ namespace mathOp
 		static constexpr double TWO_PI = 2.00 * M_PI;
 		double wrappedAngle;
 
-		// wrappedAngle = fmod(theta, TWO_PI);
 		wrappedAngle = remainder(theta, TWO_PI);
 
-		// if (wrappedAngle < 0.0)
-		// 	wrappedAngle += TWO_PI;
-
 		return wrappedAngle;
+	}
+
+	// Function that computes the congruent angle of theta in [0Pi, 3Pi]
+	inline double congruentAngle(double angle)
+	{
+		static constexpr double THREE_PI = 3.00 * M_PI;
+
+		return (std::fabs(angle) <= THREE_PI) ? angle : std::remainder(angle, THREE_PI);
 	}
 
 	// function that returns an orthogonal vector to v
