@@ -75,7 +75,12 @@ int main()
 	blaze::StaticVector<double, 3UL> target = {-0.053210, 0.043606, 0.179527}, tip_pos;
 
 	// inverse kinematics
+	start = std::chrono::high_resolution_clock::now();
 	CTR_robot.posCTRL(initGuess, target, pos_tol);
+	finish = std::chrono::high_resolution_clock::now();
+
+	elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
+	std::cout << "CTR_robot (IK Time elapsed): " << elapsed << " milliseconds.\n" << std::endl;
 
 	tip_pos = CTR_robot.getTipPos();
 

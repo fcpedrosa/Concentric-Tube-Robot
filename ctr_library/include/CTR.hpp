@@ -78,7 +78,7 @@ public:
 	bool actuate_CTR(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 6UL> &q_input);
 
 	// function that implements the position control ==> returns [u_0, Jac, q_min, timeout]
-	std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6UL>, bool> posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, const double Tol);
+	bool posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, const double Tol);
 
 	// function that returns the Vector of tubes comprising the CTR
 	std::array<std::shared_ptr<Tube>, 3UL> getTubes();

@@ -869,8 +869,8 @@ bool CTR::actuate_CTR(blaze::StaticVector<double, 5UL> &initGuess, const blaze::
 	return found;
 }
 
-// function that implements the position control ==> returns [u_0, Jac, q_min, timeout]
-std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6UL>, bool> CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, const double posTol)
+// function that implements the position control ==> returns timeout [bool]
+bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, const double posTol)
 {
 	double minError = 1.00E3;										 // minimum distance to target
 	bool status;													 // status = TRUE (FALSE) indicates convergence (lack thereof)
@@ -878,22 +878,22 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 	blaze::StaticMatrix<double, 6UL, 3UL, blaze::columnMajor> J_inv; // Jacobian pseudoinverse
 	blaze::IdentityMatrix<double, blaze::rowMajor> I(6UL);			 // 6 x 6 Identity matrix
 
-	// proportional, derivative, and integral gains for position control
-	blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL>> Kp, Kd, Ki;
-	blaze::diagonal(Kp) = 1.000; // 1.000
-	blaze::diagonal(Ki) = 0.050; // 0.100
-	blaze::diagonal(Kd) = 0.001; // 0.010
-
-	// zeroes |mb_x(0)|, |mb_y(0)|and limits the values of |u1_z(0)|, |u2_z(0)| and |u3_z(0)| to avoid numerical instability and lack of convergence
-	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
+	// zeroes |mb_x(0)|, |mb_y(0)| and |u3_z(0)| and limits the values of |u1_z(0)| and |u2_z(0)| to avoid numerical instability and lack of convergence
+	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses)
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
 																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
-		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
+		// mb_x(0) = mb_y(0) = 0.00;
+		initial_guesses[0UL] = initial_guesses[1UL];
 	};
 
 	readjustInitialGuesses(initGuess);
+
+	// proportional, derivative, and integral gains for position control
+	blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor>> Kp, Kd, Ki;
+	blaze::diagonal(Kp) = 1.000; // 0.7500;
+	blaze::diagonal(Ki) = 0.050; // 0.0005;
+	blaze::diagonal(Kd) = 0.001; // 0.0001;	
 
 	// Capturing the CTR's current joint configuration
 	blaze::StaticVector<double, 6UL> dqdt, q_min(this->m_q), q(this->m_q);
@@ -902,15 +902,14 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 	// Calculate the CTR Jacobian in the present configuration and retrieves convergence status
 	status = this->actuate_CTR(initGuess, q);
 
+	// failure of convergence of the nonlinear root-finders
 	if (!status)
-		return std::make_tuple(J, q, status);
+		return status;
 
-	// Capturing the position error, and its derivative and integral
-	blaze::StaticVector<double, 3UL> x_CTR, tipError, d_tipError, last_tipError, int_tipError;
-
-	x_CTR = this->getTipPos();
-	// Current position error
-	last_tipError = tipError = target - x_CTR;
+	blaze::StaticVector<double, 3UL> x_CTR = this->getTipPos();
+    blaze::StaticVector<double, 3UL> tipError = target - x_CTR;
+    blaze::StaticVector<double, 3UL> last_tipError = tipError;
+    blaze::StaticVector<double, 3UL> d_tipError, int_tipError;
 
 	// Euclidean distance to target
 	double dist2Tgt = blaze::norm(tipError);
@@ -921,13 +920,16 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 		q_min = q;
 
 		if (dist2Tgt <= posTol)
-			return std::make_tuple(J, q_min, status);
+			return status;
 	}
 
 	// function to implement actuators sigularity avoidance
 	blaze::StaticVector<double, 6UL> f;
+	blaze::StaticVector<double, 3UL> f1 = blaze::subvector<0UL, 3UL>(f);
+
 	// clearance between linear actuators
 	double Clr = 5.00E-3, deltaBar = 0.00;
+
 	// lengths of straight sections of the CTR tubes
 	blaze::StaticVector<double, 3UL> ls, L;
 	L[0UL] = this->m_Tubes[0UL]->getTubeLength();
@@ -937,17 +939,15 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 	ls[0UL] = this->m_Tubes[0UL]->getStraightLen();
 	ls[1UL] = this->m_Tubes[1UL]->getStraightLen();
 	ls[2UL] = this->m_Tubes[2UL]->getStraightLen();
-
 	// lower and upper bounds on prismatic joint limits
 	blaze::StaticVector<double, 3UL> betaMax, betaMin;
 
-	size_t N_itr = 0UL;			   // iterations counter
-	const size_t maxIter = 1000UL; // maximum admissible number of iterations in the position control loop
-
+	// iterations counter
+	size_t N_itr = 0UL;
+	// maximum admissible number of iterations in the position control loop
+	const size_t maxIter = 500UL;
 	// parameters for local optimization (joint limits avoidance)
-	double ke = 15;
-
-	auto f1 = blaze::subvector<0UL, 3UL>(f);
+	double ke = 2.00;
 
 	// position control loop
 	while ((dist2Tgt > posTol) && (N_itr < maxIter))
@@ -957,6 +957,16 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 
 		// compute the Jacobian in the present configuration
 		J = this->jacobian(initGuess, x_CTR);
+
+		while (!blaze::isfinite(J))
+		{
+			initGuess *= 0.750;
+			readjustInitialGuesses(initGuess);
+			this->ODESolver(initGuess);
+			x_CTR = this->getTipPos();
+			J = this->jacobian(initGuess, x_CTR);
+		}
+
 		// Pseudo-inverse of Jacobian for resolving CTR joint motion rates
 		J_inv = mathOp::pInv(J);
 
@@ -970,36 +980,37 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 		betaMax[2UL] = std::min({-deltaBar, L[1UL] + this->m_beta[1UL] - L[2UL], L[0UL] + this->m_beta[0UL] - L[2UL]});
 
 		// penalty function for local optimization (actuator collision avoidance)
-		// Inverse kinematics
-		f1 = 1.00e-4 * blaze::pow(blaze::abs((betaMax + betaMin - 2.00 * this->m_beta) / (betaMax - betaMin + 1.00e-10)), ke) * blaze::sign(this->m_beta - (betaMax + betaMin) * 0.50);
+		f1 = blaze::pow(blaze::abs((betaMax + betaMin - 2.00 * this->m_beta) / (betaMax - betaMin + 1.00E-10)), ke) * blaze::sign(this->m_beta - (betaMax + betaMin) * 0.50);
 
 		// resolved rates -- Nullspacec local optimization (joint limit avoidance)
 		dqdt = J_inv * (Kp * tipError + Kd * d_tipError + Ki * int_tipError) + (I - blaze::trans(J_inv * J)) * (-f);
 
-		auto q_dot = [&]() -> blaze::StaticVector<double, 6UL>
+		auto rescale_dqdt = [&]() -> void 
 		{ // rescaling linear joint variables for limit avoidance
 			for (size_t i = 0UL; i < 3UL; ++i)
 			{
 				if (this->m_beta[i] + dqdt[i] > betaMax[i])
+				{
 					dqdt[i] = (betaMax[i] - this->m_beta[i]) * 0.50;
+					// std::cout << "Entered hard limit constraint 1! |" << std::endl;
+				}
 
 				if (this->m_beta[i] + dqdt[i] < betaMin[i])
+				{
 					dqdt[i] = (betaMin[i] - this->m_beta[i]) * 0.50;
+					// std::cout << "| Entered hard limit constraint 2!" << std::endl;
+				}
 			}
-			return dqdt;
 		};
 
-		dqdt = q_dot();
+		rescale_dqdt();
 
 		// updating the CTR joints->q: [beta, theta]
 		q += dqdt;
 
-		// wrapping the actuation angles to the [-Pi,Pi) interval
+		// wrapping the actuation angles to the [0.00,2Pi) interval
 		blaze::subvector<3UL, 3UL>(q) = blaze::map(blaze::subvector<3UL, 3UL>(q), [](double theta)
-												   {
-				static constexpr double TWO_PI = 2.00 * M_PI;
-				
-				return std::remainder(theta, TWO_PI); });
+												   { return mathOp::congruentAngle(theta); });
 
 		// actuate the CTR to new configuration and retrieve execution timeout status
 		status = this->actuate_CTR(initGuess, q);
@@ -1007,28 +1018,28 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 		// interrupts the loop execution if actuation fails
 		if (!status)
 		{
-			initGuess *= 0.50;
+			initGuess *= 0.75;
 			readjustInitialGuesses(initGuess);
 			status = this->actuate_CTR(initGuess, q);
 
 			if (!status)
 			{
-				std::cout << "Nonlinear root-finders failed to converge: " << __PRETTY_FUNCTION__ << std::endl;
-				initGuess = std::move(initGuessMin);
+				// std::cout << "Nonlinear root-finders failed to converge: " << __PRETTY_FUNCTION__ << std::endl;
+				initGuess = initGuessMin;
 				this->actuate_CTR(initGuess, q_min);
-				// return std::make_tuple(J, q_min, status);
+				// return status;
 			}
 		}
 
-		// CTR tip position after control adjustment
+		// tip position as predicted by the model
 		x_CTR = this->getTipPos();
 
 		// current position error
 		tipError = target - x_CTR;
-		// derivative of the position error
-		d_tipError = tipError - last_tipError;
 		// integrating the position error
 		int_tipError += tipError;
+		// derivative of the position error
+		d_tipError = tipError - last_tipError;
 		// updating the last tip error variable
 		last_tipError = tipError;
 
@@ -1042,12 +1053,13 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 		}
 
 		// stops the control loop when the position update becomes significantly small
-		if (blaze::norm(dqdt) < 1.00E-6)
+		if (blaze::linfNorm(dqdt) <= 1.00E-8)
 		{
-			initGuess = std::move(initGuessMin);
-			this->actuate_CTR(initGuess, q_min);
+			initGuess = initGuessMin;
+			status = this->actuate_CTR(initGuess, q_min);
+
 			// std::cout << "Exited out of position control loop due small incremental threshold!" << std::endl;
-			return std::make_tuple(J, q_min, status);
+			return status;
 		}
 	}
 
@@ -1055,7 +1067,7 @@ std::tuple<blaze::StaticMatrix<double, 3UL, 6UL>, blaze::StaticVector<double, 6U
 	initGuess = std::move(initGuessMin);
 	status = this->actuate_CTR(initGuess, q_min);
 
-	return std::make_tuple(J, q_min, status);
+	return status;
 }
 
 // function that returns the Vector of tubes comprising the CTR
