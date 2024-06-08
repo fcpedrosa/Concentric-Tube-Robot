@@ -61,7 +61,6 @@ elseif(NOT LAPACK_FOUND)
 endif()
 
 # Check for the Blaze libray, if found print message, include dirs and link libraries.
-find_package( blaze )
 if( blaze_FOUND )
    message(STATUS "Blaze has been found!")
    target_link_libraries(${PROJECT_NAME} INTERFACE blaze::blaze)

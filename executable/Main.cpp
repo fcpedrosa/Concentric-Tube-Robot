@@ -11,8 +11,12 @@
 int main()
 {
 	//  # # # # # # # # ---- Properties of Nitinol Tubes ---- # # # # # # # #
-	double E = 58.00E9; // Young's modulus GPa
-	double G = 25.50E9; // Shear modulus GPa
+	// Young's modulus GPa
+	double E = 65.00E9;
+	// Poisson's ratio
+	double nu = 0.32;
+	// Shear modulus GPa
+	double G = E / (2.00 * (1.00 + nu));
 
 	// Precurvature radii for the tubes
 	double R1 = 40.000E-3; // (4cm curvature radius)
