@@ -5,78 +5,82 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
-      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
-      FORCE)
-endif(NOT CMAKE_BUILD_TYPE)
+# Set the default build type to Release if not specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'Release' as none was specified.")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build (Debug, Release, RelWithDebInfo, MinSizeRel)." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+endif()
 
-# Generated binary files will be directed to bin folder 
+# Output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# Set RPATH to avoid library conflicts
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_BUILD_RPATH "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
 # addind the library and main executable directories to the project tree
 add_subdirectory(ctr_library) # static CTR library
 add_subdirectory(executable)  # main executable
 
-set(Boost_USE_STATIC_LIBS        ON)  # only find static libs
-set(Boost_USE_DEBUG_LIBS        OFF)  # ignore debug libs and
-set(Boost_USE_RELEASE_LIBS       ON)  # only find release libs
-set(Boost_USE_MULTITHREADED      ON)
-set(Boost_USE_STATIC_RUNTIME    OFF)
-
+# Boost
 find_package(Boost REQUIRED)
-find_package(LAPACK REQUIRED)
-
-set(BLA_VENDOR OpenBLAS)
-set(BLA_STATIC                   ON)  # use static linkage
-find_package(BLAS)
-find_package(Blaze REQUIRED)
-
-# Check for the Boost libray, if found print message, include dirs and link libraries.
-if (Boost_FOUND)
-    message(STATUS "Boost has been found!")
+if(Boost_FOUND)
+    message(STATUS "Boost found")
     include_directories(${Boost_INCLUDE_DIRS})
-    link_libraries(${Boost_LIBRARIES})
-elseif(NOT Boost_FOUND)
-    error(STATUS "Boost has not been found!")
+else()
+    message(FATAL_ERROR "Boost not found")
 endif()
 
-if (BLAS_FOUND)
-    message(STATUS "BLAS has been found!")
-    include_directories(${BLAS_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${BLAS_LIBRARIES})
-elseif(NOT BLAS_FOUND)
-    error(STATUS "BLAS library has not been found")
+# BLAS
+set(BLA_VENDOR OpenBLAS)
+set(BLA_STATIC ON)
+find_package(BLAS REQUIRED)
+if(BLAS_FOUND)
+    message(STATUS "BLAS found")
+else()
+    message(FATAL_ERROR "BLAS not found")
 endif()
 
-# Check for the LAPACK libray, if found print message, include dirs and link libraries.
-if (LAPACK_FOUND)
-    message("LAPACK has been found!")
-    include_directories(${LAPACK_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${LAPACK_LIBRARIES})
-elseif(NOT LAPACK_FOUND)
-    error("LAPACK API has not been found")
+# LAPACK
+find_package(LAPACK REQUIRED)
+if(LAPACK_FOUND)
+    message(STATUS "LAPACK found")
+else()
+    message(FATAL_ERROR "LAPACK not found")
 endif()
 
-# Check for the Blaze libray, if found print message, include dirs and link libraries.
-if( blaze_FOUND )
-   message(STATUS "Blaze has been found!")
-   target_link_libraries(${PROJECT_NAME} INTERFACE blaze::blaze)
-elseif(NOT Blaze_FOUND)
-    error(STATUS "Blaze has not been found!")
+# Blaze
+find_package(Blaze REQUIRED)
+if(Blaze_FOUND)
+    message(STATUS "Blaze found")
+    target_link_libraries(${PROJECT_NAME} INTERFACE blaze::blaze)
+else()
+    message(FATAL_ERROR "Blaze not found")
 endif()
 
-# Check for the TBB libray. If found, print message, include dirs, and link libraries.
+# TBB
 find_package(TBB REQUIRED)
-if( TBB_FOUND )
-   message(STATUS "TBB has been found!")
-   target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
-elseif(NOT TBB_FOUND)
-    error(STATUS "TBB has not been found!")
+if(TBB_FOUND)
+    message(STATUS "TBB found")
+    target_link_libraries(${PROJECT_NAME} PRIVATE TBB::tbb)
+else()
+    message(FATAL_ERROR "TBB not found")
 endif()
 
+# Link all necessary libraries
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE
+        ${Boost_LIBRARIES}
+        ${BLAS_LIBRARIES}
+        ${LAPACK_LIBRARIES}
+        ${pugixml_LIBRARIES}
+)
+
+# Optionally enable CPack if needed
 # set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 # set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 # include(CPack)
