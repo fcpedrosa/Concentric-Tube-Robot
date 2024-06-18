@@ -713,7 +713,7 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 	{
 		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
 																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
+		// mb_x(0) = mb_y(0) = 0.00;
 		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
 	};
 
@@ -777,7 +777,7 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 			{
 				j++;
 				f = this->ODESolver(initGuess - blaze::pow(0.50, j) * d);
-				if (j > 20UL)
+				if (j > 10UL)
 				{
 					initGuess *= 0.75;
 					readjustInitialGuesses(initGuess);
@@ -797,15 +797,12 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 		}
 
 		// retrieving the minimum h_k ==> h_k is monotonically decreasing (just grab its last element)
-		lambda = blaze::pow(0.50, h_k.size() - 1);
+		lambda = blaze::pow(0.50, h_k.size() - 1UL);
 		initGuess -= lambda * d;
 		h_k.clear();
 
 		// resets the exponent variable j
 		j = 0UL;
-
-		// compute the residue associated to the newly refined initGuess
-		f = this->ODESolver(initGuess);
 
 		// checking the terminating condition
 		if (blaze::linfNorm(f) <= this->m_accuracy)
