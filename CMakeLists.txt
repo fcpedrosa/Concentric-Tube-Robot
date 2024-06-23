@@ -77,7 +77,6 @@ target_link_libraries(${PROJECT_NAME}
         ${Boost_LIBRARIES}
         ${BLAS_LIBRARIES}
         ${LAPACK_LIBRARIES}
-        ${pugixml_LIBRARIES}
 )
 
 # Optionally enable CPack if needed

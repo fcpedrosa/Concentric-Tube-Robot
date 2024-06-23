@@ -1144,9 +1144,9 @@ std::tuple<blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::
 std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> CTR::getShape()
 {
 	std::vector<double> r_x, r_y, r_z;
-	r_x.reserve(1000UL);
-	r_y.reserve(1000UL);
-	r_z.reserve(1000UL);
+	r_x.reserve(this->m_y.size());
+	r_y.reserve(this->m_y.size());
+	r_z.reserve(this->m_y.size());
 
 	if (this->m_y.size() > 0UL)
 	{
@@ -1158,7 +1158,7 @@ std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> CTR::g
 		}
 	}
 
-	return std::make_tuple(r_x, r_y, r_z);
+	return std::make_tuple(std::move(r_x), std::move(r_y), std::move(r_z));
 }
 
 // setter method for setting the actuation joint values (without actuating the CTR) <--> used for computing the Jacobian
