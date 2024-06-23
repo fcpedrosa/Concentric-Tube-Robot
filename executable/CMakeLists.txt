@@ -6,8 +6,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${Boost_INCLUDE_DIRS}
     ${BLAS_INCLUDE_DIRS}
     ${LAPACK_INCLUDE_DIRS}
-    ${pugixml_INCLUDE_DIRS}
-    ${ASSIMP_INCLUDE_DIRS}
     ${BLAZE_INCLUDE_DIRS}
     ${TBB_INCLUDE_DIRS}
 )

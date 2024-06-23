@@ -1,7 +1,7 @@
 #pragma once
 
-#define _USE_MATH_DEFINES
-#include <math.h>
+// #define _USE_MATH_DEFINES
+#include <cmath>
 #include <blaze/Math.h>
 #include <iostream>
 
@@ -18,87 +18,61 @@ namespace mathOp
 		BROYDEN_II
 	};
 
-	// Function for converting from degrees to radians
-	inline double deg2Rad(const double degree)
+	// Function for converting degrees to radians
+	inline constexpr double deg2Rad(double degree)
 	{
-		static constexpr double pi_180 = M_PI / 180.00;
-		return (degree * pi_180);
+		constexpr double pi_180 = M_PI / 180.00;
+		return degree * pi_180;
 	}
 
-	// Function that reduces any angle to its congruent in the [-Pi, Pi) interval
-	inline double wrapTo2Pi(const double theta)
+	// Function to reduce any angle to its congruent in the [0, 2*Pi) interval
+	inline double wrapTo2Pi(double theta)
 	{
-		static constexpr double TWO_PI = 2.00 * M_PI;
-		double wrappedAngle;
-
-		wrappedAngle = remainder(theta, TWO_PI);
-
-		return wrappedAngle;
+		constexpr double TWO_PI = 2.00 * M_PI;
+		return std::fmod(std::fmod(theta, TWO_PI) + TWO_PI, TWO_PI);
 	}
 
-	// Function that computes the congruent angle of theta in [0Pi, 3Pi]
+	// Function that computes the congruent angle of theta in [0, 3Pi]
 	inline double congruentAngle(double angle)
 	{
-		static constexpr double THREE_PI = 3.00 * M_PI;
-
-		return (std::fabs(angle) <= THREE_PI) ? angle : std::remainder(angle, THREE_PI);
+		constexpr double THREE_PI = 3.00 * M_PI;
+		return std::fmod(std::fabs(angle), THREE_PI) * (angle < 0.00 ? -1.00 : 1.00);
 	}
 
-	// function that returns an orthogonal vector to v
+	// Function that returns an orthogonal vector to v
 	inline blaze::StaticVector<double, 3UL> orthogonal(const blaze::StaticVector<double, 3UL> &v)
 	{
-		double x = std::abs(v[0UL]), y = std::abs(v[1UL]), z = std::abs(v[2UL]);
 		blaze::StaticVector<double, 3UL> aux;
-
-		if (x < y)
+		if (std::fabs(v[0UL]) < std::fabs(v[1UL]))
 		{
-			if (x < z) // aux = {1.00, 0.00, 0.00};
-			{
-				aux[0UL] = 1.00;
-				aux[1UL] = aux[2UL] = 0.00;
-			}
-			else // aux = {0.00, 0.00, 1.00};
-			{
-				aux[2UL] = 1.00;
-				aux[0UL] = aux[1UL] = 0.00;
-			}
+			aux[std::fabs(v[0UL]) < std::fabs(v[2UL]) ? 0UL : 2UL] = 1.00;
 		}
 		else
 		{
-			if (y < z) // aux = {0.00, 1.00, 0.00};
-			{
-				aux[1UL] = 1.00;
-				aux[0UL] = aux[2UL] = 0.00;
-			}
-			else // aux = {0.00, 0.00, 1.00};
-			{
-				aux[2UL] = 1.00;
-				aux[0UL] = aux[1UL] = 0.00;
-			}
+			aux[std::fabs(v[1UL]) < std::fabs(v[2UL]) ? 1UL : 2UL] = 1.00;
 		}
 
 		return blaze::cross(v, aux);
 	}
 
-	// function that returns the least quaternion rotation between vectors a, b
+	// Function that returns the least quaternion rotation between vectors a and b
 	inline blaze::StaticVector<double, 4UL> getRotationBetween(const blaze::StaticVector<double, 3UL> &a, const blaze::StaticVector<double, 3UL> &b)
 	{
-		blaze::StaticVector<double, 3UL> from = blaze::normalize(a), to = blaze::normalize(b);
+		blaze::StaticVector<double, 3UL> from = blaze::normalize(a);
+		blaze::StaticVector<double, 3UL> to = blaze::normalize(b);
 		blaze::StaticVector<double, 4UL> quaternion;
 
-		// handles the case of parallel vectors & opposing directions
+		// Handles the case of parallel vectors & opposing directions
 		if (from == -to)
 		{
-			std::cout << "Entered from == -to\n";
-			quaternion[0UL] = 0.00;
-			blaze::subvector<1UL, 3UL>(quaternion) = blaze::normalize(orthogonal(from));
+			quaternion[blaze::argmax(from)] = 1.00;
 		}
 		else
 		{
-			// bisecting vector
-			blaze::StaticVector<double, 3UL> half = blaze::normalize(from + to);
-			quaternion[0UL] = blaze::dot(from, half);
-			blaze::subvector<1UL, 3UL>(quaternion) = blaze::cross(from, half);
+			double cos_theta = blaze::dot(from, to);
+			double half_cos = std::sqrt((1.00 + cos_theta) * 0.50);
+			blaze::StaticVector<double, 3UL> axis = blaze::cross(from, to) / (2.00 * half_cos);
+			quaternion = {half_cos, axis[0UL], axis[1UL], axis[2UL]};
 		}
 
 		return quaternion;
@@ -120,7 +94,6 @@ namespace mathOp
 		catch (std::exception &e)
 		{
 			std::cerr << "Blaze SVD has failed: " << e.what() << std::endl;
-			// std::cout << "CTR joints: " << blaze::trans(this->m_q) << std::endl;
 			std::cerr << M << std::endl;
 		}
 
@@ -131,16 +104,15 @@ namespace mathOp
 		auto diag = blaze::diagonal(S_inv);
 		// applies a "damping factor" to the zero singular values of the matrix M
 		diag = blaze::map(s, [](double d)
-						  { return (d < 1.00E-25) ? 0.00 : d / ((d * d) + 1.00E-25); }); // Damped least squares -- SVD pseudo inverse
+						  { return (d <= 1.00E-25) ? 0.00 : d / ((d * d) + 1.00E-25); }); // Damped least squares -- SVD pseudo inverse
 
 		return blaze::trans(U * S_inv * V);
 	}
 
 	inline void SO3_To_Quaternion(blaze::StaticVector<double, 4UL> &h, const blaze::StaticMatrix<double, 3UL, 3UL> &R)
-	// inline void toQuaternion(blaze::StaticVector<double, 4UL> &h, const blaze::StaticMatrix<double, 3UL, 3UL> &R)
 	{
-		double n4;					 // the norm of quaternion multiplied by 4
-		double tr = blaze::trace(R); // trace of martix
+		double n4;						   // the norm of quaternion multiplied by 4
+		const double tr = blaze::trace(R); // trace of matrix
 
 		if (tr > 0.00)
 		{
@@ -150,32 +122,41 @@ namespace mathOp
 			h[3UL] = R(0UL, 1UL) - R(1UL, 0UL);
 			n4 = h[0UL];
 		}
-		else if (R(0UL, 0UL) > std::max(R(1UL, 1UL), R(2UL, 2UL)))
-		{
-			h[0UL] = R(1UL, 2UL) - R(2UL, 1UL);
-			h[1UL] = 1.00 + R(0UL, 0UL) - R(1UL, 1UL) - R(2UL, 2UL);
-			h[2UL] = R(1UL, 0UL) + R(0UL, 1UL);
-			h[3UL] = R(2UL, 0UL) + R(0UL, 2UL);
-			n4 = h[1UL];
-		}
-		else if (R(1UL, 1UL) > R(2UL, 2UL))
-		{
-			h[0UL] = R(2UL, 0UL) - R(0UL, 2UL);
-			h[1UL] = R(1UL, 0UL) + R(0UL, 1UL);
-			h[2UL] = 1.00 + R(1UL, 1UL) - R(0UL, 0UL) - R(2UL, 2UL);
-			h[3UL] = R(2UL, 1UL) + R(1UL, 2UL);
-			n4 = h[2UL];
-		}
 		else
 		{
-			h[0UL] = R(0UL, 1UL) - R(1UL, 0UL);
-			h[1UL] = R(2UL, 0UL) + R(0UL, 2UL);
-			h[2UL] = R(2UL, 1UL) + R(1UL, 2UL);
-			h[3UL] = 1.00 + R(2UL, 2UL) - R(0UL, 0UL) - R(1UL, 1UL);
-			n4 = h[3UL];
+			size_t i = 0UL;
+			if (R(1UL, 1UL) > R(0UL, 0UL))
+				i = 1UL;
+			if (R(2UL, 2UL) > R(i, i))
+				i = 2UL;
+
+			switch (i)
+			{
+			case 0UL:
+				h[0UL] = R(1UL, 2UL) - R(2UL, 1UL);
+				h[1UL] = 1.00 + R(0UL, 0UL) - R(1UL, 1UL) - R(2UL, 2UL);
+				h[2UL] = R(1UL, 0UL) + R(0UL, 1UL);
+				h[3UL] = R(2UL, 0UL) + R(0UL, 2UL);
+				n4 = h[1UL];
+				break;
+			case 1UL:
+				h[0UL] = R(2UL, 0UL) - R(0UL, 2UL);
+				h[1UL] = R(1UL, 0UL) + R(0UL, 1UL);
+				h[2UL] = 1.00 + R(1UL, 1UL) - R(0UL, 0UL) - R(2UL, 2UL);
+				h[3UL] = R(2UL, 1UL) + R(1UL, 2UL);
+				n4 = h[2UL];
+				break;
+			case 2UL:
+				h[0UL] = R(0UL, 1UL) - R(1UL, 0UL);
+				h[1UL] = R(2UL, 0UL) + R(0UL, 2UL);
+				h[2UL] = R(2UL, 1UL) + R(1UL, 2UL);
+				h[3UL] = 1.00 + R(2UL, 2UL) - R(0UL, 0UL) - R(1UL, 1UL);
+				n4 = h[3UL];
+				break;
+			}
 		}
 
-		h *= 1.00 / (2.00 * sqrt(n4)); // R(UL, UL)
+		h *= 1.00 / (2.00 * std::sqrt(n4));
 	}
 
 	inline void euler2Quaternion(const double heading, const double attitude, const double bank, blaze::StaticVector<double, 4UL> &h)
@@ -196,60 +177,59 @@ namespace mathOp
 	// function that returns a rotation matrix in SO(3) from a set of non-unity quaternions
 	inline void getSO3(const blaze::StaticVector<double, 4UL> &h, blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> &R)
 	{
-		blaze::IdentityMatrix<double> I(3UL);
+		const double scale = 2.00 / blaze::sqrNorm(h);
 
-		R = {{-h[2UL] * h[2UL] - h[3UL] * h[3UL], h[1UL] * h[2UL] - h[3UL] * h[0UL], h[1UL] * h[3UL] + h[2UL] * h[0UL]},
-			 {h[1UL] * h[2UL] + h[3UL] * h[0UL], -h[1UL] * h[1UL] - h[3UL] * h[3UL], h[2UL] * h[3UL] - h[1UL] * h[0UL]},
-			 {h[1UL] * h[3UL] - h[2UL] * h[0UL], h[2UL] * h[3UL] + h[1UL] * h[0UL], -h[1UL] * h[1UL] - h[2UL] * h[2UL]}};
+		R(0UL, 0UL) = 1.00 + scale * (-h[2UL] * h[2UL] - h[3UL] * h[3UL]);
+		R(0UL, 1UL) = scale * (h[1UL] * h[2UL] - h[3UL] * h[0UL]);
+		R(0UL, 2UL) = scale * (h[1UL] * h[3UL] + h[2UL] * h[0UL]);
 
-		R *= 2.00 / blaze::sqrNorm(h);
-		R += I;
+		R(1UL, 0UL) = scale * (h[1UL] * h[2UL] + h[3UL] * h[0UL]);
+		R(1UL, 1UL) = 1.00 + scale * (-h[1UL] * h[1UL] - h[3UL] * h[3UL]);
+		R(1UL, 2UL) = scale * (h[2UL] * h[3UL] - h[1UL] * h[0UL]);
+
+		R(2UL, 0UL) = scale * (h[1UL] * h[3UL] - h[2UL] * h[0UL]);
+		R(2UL, 1UL) = scale * (h[2UL] * h[3UL] + h[1UL] * h[0UL]);
+		R(2UL, 2UL) = 1.00 + scale * (-h[1UL] * h[1UL] - h[2UL] * h[2UL]);
 	}
 
 	// function that returns the rotation matrix Rz of any angle theta
-	inline blaze::StaticMatrix<double, 3UL, 3UL> rotz(double theta)
+	inline blaze::StaticMatrix<double, 3UL, 3UL> rotz(const double &theta)
 	{
-		blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R;
 		double c(cos(theta)), s(sin(theta));
-
-		R = {{c, -s, 0.00},
-			 {s, c, 0.00},
-			 {0.00, 0.00, 1.00}};
+		blaze::StaticMatrix<double, 3UL, 3UL> R{{c, -s, 0.00},
+												{s, c, 0.00},
+												{0.00, 0.00, 1.00}};
 
 		return R;
 	}
 
 	// function that returns the derivative of the rotation matrix Rz
-	inline blaze::StaticMatrix<double, 3UL, 3UL> rotz_dot_transpose(double theta)
+	inline blaze::StaticMatrix<double, 3UL, 3UL> rotz_dot_transpose(const double &theta)
 	{
-		blaze::StaticMatrix<double, 3UL, 3UL> dR;
 		double c(cos(theta)), s(sin(theta));
-
-		dR = {{-s, c, 0.00},
-			  {-c, -s, 0.00},
-			  {0.00, 0.00, 0.00}};
+		blaze::StaticMatrix<double, 3UL, 3UL> dR{{-s, c, 0.00},
+												 {-c, -s, 0.00},
+												 {0.00, 0.00, 0.00}};
 
 		return dR;
 	}
 
-	// function that applies the hat operator to a vector in R3
+	// function that computes the premultiplication of a matrix M by v^, i.e., v^ * M
 	inline blaze::StaticMatrix<double, 3UL, 3UL> hatOperator(const blaze::StaticVector<double, 3UL> &v)
 	{
-		blaze::StaticMatrix<double, 3UL, 3UL> v_hat = {
-			{0.00, -v[2UL], v[1UL]},
-			{v[2UL], 0.00, -v[0UL]},
-			{-v[1UL], v[0UL], 0.00}
-		};
+		blaze::StaticMatrix<double, 3UL, 3UL> Res{{0.00, -v[2UL], v[1UL]},
+												  {v[2UL], 0.00, -v[0UL]},
+												  {-v[1UL], v[0UL], 0.00}};
 
-		return v_hat;
+		return Res;
 	}
 
 	// function that computes the premultiplication of a matrix M by v^, i.e., v^ * M
 	inline blaze::StaticMatrix<double, 3UL, 3UL> hatPreMultiply(const blaze::StaticVector<double, 3UL> &v, const blaze::StaticMatrix<double, 3UL, 3UL> &M)
 	{
-		blaze::StaticMatrix<double, 3UL, 3UL> Res = {{-M(1UL, 0UL) * v[2UL] + M(2UL, 0UL) * v[1UL], -M(1UL, 1UL) * v[2UL] + M(2UL, 1UL) * v[1UL], -M(1UL, 2UL) * v[2UL] + M(2UL, 2UL) * v[1UL]},
-													 {M(0UL, 0UL) * v[2UL] - M(2UL, 0UL) * v[0UL], M(0UL, 1UL) * v[2UL] - M(2UL, 1UL) * v[0UL], M(0UL, 2UL) * v[2UL] - M(2UL, 2UL) * v[0UL]},
-													 {-M(0UL, 0UL) * v[1UL] + M(1UL, 0UL) * v[0UL], -M(0UL, 1UL) * v[1UL] + M(1UL, 1UL) * v[0UL], -M(0UL, 2UL) * v[1UL] + M(1UL, 2UL) * v[0UL]}};
+		blaze::StaticMatrix<double, 3UL, 3UL> Res{{-M(1UL, 0UL) * v[2UL] + M(2UL, 0UL) * v[1UL], -M(1UL, 1UL) * v[2UL] + M(2UL, 1UL) * v[1UL], -M(1UL, 2UL) * v[2UL] + M(2UL, 2UL) * v[1UL]},
+												  {M(0UL, 0UL) * v[2UL] - M(2UL, 0UL) * v[0UL], M(0UL, 1UL) * v[2UL] - M(2UL, 1UL) * v[0UL], M(0UL, 2UL) * v[2UL] - M(2UL, 2UL) * v[0UL]},
+												  {-M(0UL, 0UL) * v[1UL] + M(1UL, 0UL) * v[0UL], -M(0UL, 1UL) * v[1UL] + M(1UL, 1UL) * v[0UL], -M(0UL, 2UL) * v[1UL] + M(1UL, 2UL) * v[0UL]}};
 
 		return Res;
 	}
@@ -257,22 +237,30 @@ namespace mathOp
 	// function that computes the posmultiplication of a matrix M by v^, i.e., M * v^
 	inline blaze::StaticMatrix<double, 3UL, 3UL> hatPostMultiply(const blaze::StaticMatrix<double, 3UL, 3UL> &M, const blaze::StaticVector<double, 3UL> &v)
 	{
-		blaze::StaticMatrix<double, 3UL, 3UL> Res = {{M(0UL, 1UL) * v[2UL] - M(0UL, 2UL) * v[1UL], -M(0UL, 0UL) * v[2UL] + M(0UL, 2UL) * v[0UL], M(0UL, 0UL) * v[1UL] - M(0UL, 1UL) * v[0UL]},
-													 {M(1UL, 1UL) * v[2UL] - M(1UL, 2UL) * v[1UL], -M(1UL, 0UL) * v[2UL] + M(1UL, 2UL) * v[0UL], M(1UL, 0UL) * v[1UL] - M(1UL, 1UL) * v[0UL]},
-													 {M(2UL, 1UL) * v[2UL] - M(2UL, 2UL) * v[1UL], -M(2UL, 0UL) * v[2UL] + M(2UL, 2UL) * v[0UL], M(2UL, 0UL) * v[1UL] - M(2UL, 1UL) * v[0UL]}};
+		blaze::StaticMatrix<double, 3UL, 3UL> Res{{M(0UL, 1UL) * v[2UL] - M(0UL, 2UL) * v[1UL], -M(0UL, 0UL) * v[2UL] + M(0UL, 2UL) * v[0UL], M(0UL, 0UL) * v[1UL] - M(0UL, 1UL) * v[0UL]},
+												  {M(1UL, 1UL) * v[2UL] - M(1UL, 2UL) * v[1UL], -M(1UL, 0UL) * v[2UL] + M(1UL, 2UL) * v[0UL], M(1UL, 0UL) * v[1UL] - M(1UL, 1UL) * v[0UL]},
+												  {M(2UL, 1UL) * v[2UL] - M(2UL, 2UL) * v[1UL], -M(2UL, 0UL) * v[2UL] + M(2UL, 2UL) * v[0UL], M(2UL, 0UL) * v[1UL] - M(2UL, 1UL) * v[0UL]}};
 
 		return Res;
+	}
+
+	// efficiently computes the product between a vector and the transpose of a matrix (R^T * v)
+	inline blaze::StaticVector<double, 3UL> transposePreMultiply(const blaze::StaticMatrix<double, 3UL, 3UL> &R, const blaze::StaticVector<double, 3UL> &v)
+	{
+		blaze::StaticVector<double, 3UL> res{R(0UL, 0UL) * v[0UL] + R(1UL, 0UL) * v[1UL] + R(2UL, 0UL) * v[2UL],
+											 R(0UL, 1UL) * v[0UL] + R(1UL, 1UL) * v[1UL] + R(2UL, 1UL) * v[2UL],
+											 R(0UL, 2UL) * v[0UL] + R(1UL, 2UL) * v[1UL] + R(2UL, 2UL) * v[2UL]};
+
+		return res;
 	}
 
 	// function that computes the differential quaternion evolution
 	inline blaze::StaticVector<double, 4UL> quaternionDiff(const blaze::StaticVector<double, 3UL> &u, const blaze::StaticVector<double, 4UL> &h)
 	{
-		blaze::StaticVector<double, 4UL> hs;
-
-		hs[0UL] = 0.50 * (-u[0UL] * h[1UL] - u[1UL] * h[2UL] - u[2UL] * h[3UL]);
-		hs[1UL] = 0.50 * (u[0UL] * h[0UL] + u[2UL] * h[2UL] - u[1UL] * h[3UL]);
-		hs[2UL] = 0.50 * (u[1UL] * h[0UL] - u[2UL] * h[1UL] + u[0UL] * h[3UL]);
-		hs[3UL] = 0.50 * (u[2UL] * h[0UL] + u[1UL] * h[1UL] - u[0UL] * h[2UL]);
+		blaze::StaticVector<double, 4UL> hs{0.50 * (-u[0UL] * h[1UL] - u[1UL] * h[2UL] - u[2UL] * h[3UL]),
+											0.50 * (u[0UL] * h[0UL] + u[2UL] * h[2UL] - u[1UL] * h[3UL]),
+											0.50 * (u[1UL] * h[0UL] - u[2UL] * h[1UL] + u[0UL] * h[3UL]),
+											0.50 * (u[2UL] * h[0UL] + u[1UL] * h[1UL] - u[0UL] * h[2UL])};
 
 		return hs;
 	}
