@@ -23,3 +23,7 @@ Thumbs.db
 *.obj
 *.exe
 *.out
+
+# Ignore the Doxygen configuration file
+Doxyfile.in
+mainpage.dox

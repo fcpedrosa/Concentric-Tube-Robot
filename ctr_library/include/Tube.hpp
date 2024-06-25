@@ -6,89 +6,237 @@
 #include <iostream>
 #include <blaze/Math.h>
 
+/**
+ * @brief Represents a tube in the concentric arrangement comprising the CTR robot
+ */
 class Tube
 {
 private:
+	/**
+	 * @brief Pi constant divided by 64.
+	 */
 	static const double pi_64;
+
+	/**
+	 * @brief Pi constant divided by 32.
+	 */
 	static const double pi_32;
+
+	/**
+	 * @brief Outer diameter of the tube.
+	 */
 	double m_OD;
+
+	/**
+	 * @brief Inner diameter of the tube.
+	 */
 	double m_ID;
+
+	/**
+	 * @brief Young's modulus of the tube material.
+	 */
 	double m_E;
+
+	/**
+	 * @brief Second moment of area of the tube cross-section.
+	 */
 	double m_I;
+
+	/**
+	 * @brief Shear modulus of the tube material.
+	 */
 	double m_G;
+
+	/**
+	 * @brief Polar moment of inertia of the tube cross-section.
+	 */
 	double m_J;
+
+	/**
+	 * @brief Stiffness matrix of the tube.
+	 */
 	blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> m_K;
+
+	/**
+	 * @brief Length of the straight segment of the tube.
+	 */
 	double m_ls;
+
+	/**
+	 * @brief Length of the curved segment of the tube.
+	 */
 	double m_lc;
+
+	/**
+	 * @brief Pre-curvature vector of the tube.
+	 */
 	blaze::StaticVector<double, 3UL> m_u_ast;
 
 public:
-	// default constructor
+	/**
+	 * @brief Implements the default constructor for the Tube class
+	 */
 	Tube();
 
-	// Tube constructor
+	/**
+	 * @brief Implements the overloaded constructor for the Tube class.
+	 *
+	 * @param OD The outer diameter of the tube.
+	 * @param ID The inner diameter of the tube.
+	 * @param E The Young's modulus of the tube material.
+	 * @param G The Shear modulus of the tube material
+	 * @param ls The length of the straight transmission of the tube
+	 * @param lc The length of the curved segment of the tube
+	 * @param u_ast A 3-dimensional static Blaze vector of the pre-curvature of the tube
+	 */
 	Tube(double OD, double ID, double E, double G, double ls, double lc, const blaze::StaticVector<double, 3UL> &u_ast);
 
-	// Tube desctructor
+	/**
+	 * @brief Destroys the Tube object.
+	 */
 	~Tube() = default;
 
-	// copy constructor
+	/**
+	 * @brief Implements the copy constructor for the Tube class.
+	 *
+	 * @param rhs The source Tube object to copy from.
+	 */
 	Tube(const Tube &rhs);
 
-	// move constructor
+	/**
+	 * @brief Implements the move constructor for the Tube class.
+	 *
+	 * @param rhs The source Tube object to move from.
+	 */
 	Tube(Tube &&rhs) noexcept;
 
-	// Copy assignment operator
+	/**
+	 * @brief Implements the copy assignment operator for the Tube class.
+	 *
+	 * @param rhs The source Tube object to copy from.
+	 * @return A reference to the assigned Tube object.
+	 */
 	Tube &operator=(const Tube &rhs);
 
-	// move assignment operator
+	/**
+	 * @brief Implements the move assignment operator for the Tube class.
+	 *
+	 * @param rhs The source Tube object to move from.
+	 * @return A reference to the assigned Tube object.
+	 */
 	Tube &operator=(Tube &&rhs) noexcept;
 
-	// get method for retrieving the tube parameters
+	/**
+	 * @brief Implements getter method for retrieving the tube's kinematic parameters
+	 *
+	 * @return A tuple containing the parameters [OD, ID, E, G, ls, lc, ||u_ast||] .
+	 */
 	std::tuple<double, double, double, double, double, blaze::StaticVector<double, 3UL>> getTubeParameters();
 
-	// set method for updating the Young's modulus
+	/**
+	 * @brief Implements a setter method for setting the Young's modulus of the Tube object
+	 *
+	 * @param E The numerical value of the new Young's modulus of the Tube's material
+	 */
 	void setYoungModulus(double E);
 
-	// set method for updating the Shear modulus
+	/**
+	 * @brief Implements a setter method for setting the Shear modulus of the Tube object
+	 *
+	 * @param G The numerical value of the new Shear modulus of the Tube's material
+	 */
 	void setShearModulus(double G);
 
-	// get method for retrieving the tube overall length
+	/**
+	 * @brief Implements a getter method for retrieving the tube length
+	 *
+	 * @return The overall tube length in meters (straight + curved sections)
+	 */
 	double getTubeLength();
 
-	// get method for retrieving the tube precurvature vector
+	/**
+	 * @brief Implements a getter method for retrieving the pre-curvature of the Tube object
+	 *
+	 * @return A 3-dimensional static Blaze vector with the pre-curvature of the tube
+	 */
 	blaze::StaticVector<double, 3UL> get_u_ast();
 
-	// get method for retrieving the "scalar" curvature along x or y directions
+	/**
+	 * @brief Implements a getter method for retrieving the pre-curvature of the Tube object along a specific direction
+	 *
+	 * @return A scalar with the pre-curvature of the tube along the 'x' or 'y' directions
+	 */
 	double get_u_ast(const size_t id);
 
-	// set method for updating the tube precurvature vector
+	/**
+	 * @brief Implements a setter method for updating the pre-curvature of the Tube object
+	 *
+	 * @param A 3-dimensional static Blaze vector with the new pre-curvature of the tube
+	 */
 	void set_u_ast(const blaze::StaticVector<double, 3UL> &u_ast);
 
-	// set method for updadting the tube's precurvature along x or y directions
+	/**
+	 * @brief Implements a setter method for updating the pre-curvature of the Tube object along a specific direction
+	 *
+	 * @param id A size_t index of the direction 0: 'x', 1: 'y'
+	 * @param A scalar with the pre-curvature of the tube along the 'x' or 'y' directions, as determined by id
+	 */
 	void set_u_ast(const size_t id, const double u);
 
-	// get method for retrieving the length of the straight section
+	/**
+	 * @brief Implements a getter method for retrieving the length of the straight tranmission of the Tube object
+	 *
+	 * @return A scalar with the length of the straight segment of the tube in meters
+	 */
 	double getStraightLen();
 
-	// get method for retrieving the length of the tube curved section
+	/**
+	 * @brief Implements a getter method for retrieving the length of the curved segment of the Tube object
+	 *
+	 * @return A scalar with the length of the curved segment of the tube in meters
+	 */
 	double getCurvLen();
 
-	// set method for updating the length of the straight section
+	/**
+	 * @brief Implements a setter method for updating the length of the straight tranmission of the Tube object
+	 *
+	 * @param ls scalar with the new length of the straight segment of the tube in meters
+	 */
 	void setStraightLen(double ls);
 
-	// set method for updating the legnth of the curved section
+	/**
+	 * @brief Implements a setter method for updating the length of the curved segment of the Tube object
+	 *
+	 * @param lc scalar with the length of the curved segment of the tube in meters
+	 */
 	void setCurvLen(double lc);
 
-	// get method for retrieving the stiffness matrix
+	/**
+	 * @brief Implements a getter method for retrieving the bending stiffness matrix for the Tube object
+	 *
+	 * @return A 3x3 static diagonal Blaze matrix witht the bending stiffness of the Tube object
+	 */
 	blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> getK_Matrix();
 
-	// get method for retrieving the ith entry of the main diagonal
+	/**
+	 * @brief Implements a getter method for retrieving the bending/torsional stiffness of the Tube along a specific direction
+	 *
+	 * @param A size_t index of the direction: 0: 'x', 1: 'y', 2: 'z'
+	 */
 	double getK(int i);
 
-	// method for setting the bending & torsional stiffness
+	/**
+	 * @brief Implements a setter method for updating the bending & torional stiffness of the Tube
+	 *
+	 * @param EI The new bending stiffness along the 'x' and 'y' directions
+	 * @param GJ The new torsional stiffness along the 'z' direction
+	 */
 	void setK(const double EI, const double GJ);
 
-	// method for setting the bending stiffness in the stiffness matrix
+	/**
+	 * @brief Implements a setter method for updating the bending stiffness of the Tube
+	 *
+	 * @param EI The new bending stiffness along the 'x' and 'y' directions
+	 */
 	void setBendingK(const double EI);
 };
