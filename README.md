@@ -77,7 +77,7 @@ Download the precompiled binaries for your platform from the [Releases](https://
 
 ## Usage
 
-For detailed documentation on the library's API and usage, please refer to the [Documentation](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/docs/html/index.html) section.
+For detailed documentation on the library's API and usage, please refer to the [Documentation](https://fcpedrosa.github.io/Concentric-Tube-Robot/html/index.html) section.
 
 ## Examples
 
