@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.11.0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>@Barebones Static CTR Library@: Tube Class Reference</title>
+<title>Barebones Static CTR Library: Tube Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -25,7 +25,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">@Barebones Static CTR Library@
+   <div id="projectname">Barebones Static CTR Library<span id="projectnumber">&#160;2.1.4</span>
    </div>
   </td>
  </tr>
@@ -97,6 +97,14 @@ $(function(){ initResizable(false); });
  <a href="#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="Tube_8hpp_source.html">Tube.hpp</a>&gt;</code></p>
+<div class="dynheader">
+Collaboration diagram for Tube:</div>
+<div class="dyncontent">
+<div class="center"><img src="classTube__coll__graph.png" border="0" usemap="#aTube_coll__map" alt="Collaboration graph"/></div>
+<map name="aTube_coll__map" id="aTube_coll__map">
+<area shape="rect" title="Represents a tube in the concentric arrangement comprising the CTR robot." alt="" coords="5,5,292,816"/>
+</map>
+</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -426,7 +434,7 @@ static const double&#160;</td><td class="memItemRight" valign="bottom"><b>pi_32<
 <p>Implements a getter method for retrieving the bending/torsional stiffness of the <a class="el" href="classTube.html" title="Represents a tube in the concentric arrangement comprising the CTR robot.">Tube</a> along a specific direction. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">A</td><td>size_t index of the direction: 0: 'x', 1: 'y', 2: 'z' </td></tr>
+    <tr><td class="paramname">i</td><td>size_t index of the direction: 0: 'x', 1: 'y', 2: 'z' </td></tr>
   </table>
   </dd>
 </dl>
@@ -591,7 +599,7 @@ static const double&#160;</td><td class="memItemRight" valign="bottom"><b>pi_32<
 <p>Implements a setter method for updating the pre-curvature of the <a class="el" href="classTube.html" title="Represents a tube in the concentric arrangement comprising the CTR robot.">Tube</a> object. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">A</td><td>3-dimensional static Blaze vector with the new pre-curvature of the tube </td></tr>
+    <tr><td class="paramname">u_ast</td><td>3-dimensional static Blaze vector with the new pre-curvature of the tube </td></tr>
   </table>
   </dd>
 </dl>
@@ -621,7 +629,7 @@ static const double&#160;</td><td class="memItemRight" valign="bottom"><b>pi_32<
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">id</td><td>A size_t index of the direction 0: 'x', 1: 'y' </td></tr>
-    <tr><td class="paramname">A</td><td>scalar with the pre-curvature of the tube along the 'x' or 'y' directions, as determined by id </td></tr>
+    <tr><td class="paramname">u</td><td>scalar with the pre-curvature of the tube along the 'x' or 'y' directions, as determined by id </td></tr>
   </table>
   </dd>
 </dl>
@@ -784,8 +792,8 @@ static const double&#160;</td><td class="memItemRight" valign="bottom"><b>pi_32<
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following files:<ul>
-<li>/home/fcpedrosa/Documents/Cpp_Projects/CTR_CMAKE/ctr_library/include/<a class="el" href="Tube_8hpp_source.html">Tube.hpp</a></li>
-<li>/home/fcpedrosa/Documents/Cpp_Projects/CTR_CMAKE/ctr_library/src/<b>Tube.cpp</b></li>
+<li>ctr_library/include/<a class="el" href="Tube_8hpp_source.html">Tube.hpp</a></li>
+<li>ctr_library/src/<b>Tube.cpp</b></li>
 </ul>
 </div><!-- contents -->
 <!-- start footer part -->

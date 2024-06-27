@@ -25,5 +25,5 @@ Thumbs.db
 *.out
 
 # Ignore the Doxygen configuration file
-Doxyfile.in
+Doxyfile.*
 mainpage.dox

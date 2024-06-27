@@ -234,7 +234,7 @@ public:
 	/**
 	 * @brief Implements a setter method for chosing wich nonlinear root finding algorithm to use when solving the Boundary Value Problem (BVP)
 	 *
-	 * @param An enum class specifying the root-finding method. The possible choices are: NEWTON_RAPHSON, LEVENBERG_MARQUARDT, POWELL_DOG_LEG, MODIFIED_NEWTON_RAPHSON, BROYDEN, and BROYDEN_II.
+	 * @param mthd enum class specifying the root-finding method. The possible choices are: NEWTON_RAPHSON, LEVENBERG_MARQUARDT, POWELL_DOG_LEG, MODIFIED_NEWTON_RAPHSON, BROYDEN, and BROYDEN_II.
 	 */
 	void setBVPMethod(mathOp::rootFindingMethod mthd);
 

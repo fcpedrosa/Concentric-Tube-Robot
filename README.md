@@ -19,7 +19,7 @@ This repository contains a C++ static library for implementing the forward and i
 - [Introduction](#introduction)
 - [Features](#features)
 - [Installation](#installation)
-- [Usage](#usage)
+- [Documentation & Usage](#usage)
 - [Examples](#examples)
 - [Contributing](#contributing)
 - [License](#license)
@@ -34,7 +34,7 @@ This C++ static library provides a barebone implementation of the forward and in
 - Implementation of the forward kinematics of a three-tube CTR.
 - Implementation of the inverse kinematics of a three-tube CTR.
 - Easy-to-use API for integrating the library into your C++ projects.
-- Comprehensive documentation explaining the kinematic model and usage of the library.
+- Comprehensive [documentation](https://fcpedrosa.github.io/Concentric-Tube-Robot/html/index.html) explaining the kinematic model and usage of the library.
 
 ![Backbone Shape](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/images/Backbone.png)
 
