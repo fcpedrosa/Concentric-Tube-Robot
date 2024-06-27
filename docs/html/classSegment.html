@@ -101,7 +101,7 @@ Collaboration diagram for Segment:</div>
 <div class="dyncontent">
 <div class="center"><img src="classSegment__coll__graph.png" border="0" usemap="#aSegment_coll__map" alt="Collaboration graph"/></div>
 <map name="aSegment_coll__map" id="aSegment_coll__map">
-<area shape="rect" title="Class representing Segments between transition points in a Concentric Tube Robot (CTR)." alt="" coords="5,5,296,1328"/>
+<area shape="rect" title="Class representing Segments between transition points in a Concentric Tube Robot (CTR)." alt="" coords="5,5,309,1276"/>
 </map>
 </div>
 <table class="memberdecls">
@@ -133,27 +133,27 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a503bb9a6dbaecf124e41cb089d9d52d5" id="r_a503bb9a6dbaecf124e41cb089d9d52d5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a503bb9a6dbaecf124e41cb089d9d52d5">recalculateSegments</a> (const std::array&lt; std::shared_ptr&lt; <a class="el" href="classTube.html">Tube</a> &gt;, 3UL &gt; &amp;Tb, const blaze::StaticVector&lt; double, 3UL &gt; &amp;beta)</td></tr>
 <tr class="memdesc:a503bb9a6dbaecf124e41cb089d9d52d5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Computes the tube transition points and the corresponding parameters at each segment.  <br /></td></tr>
 <tr class="separator:a503bb9a6dbaecf124e41cb089d9d52d5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae214d0fe0e0fdf51824a50042c41a4d2" id="r_ae214d0fe0e0fdf51824a50042c41a4d2"><td class="memItemLeft" align="right" valign="top">std::vector&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae214d0fe0e0fdf51824a50042c41a4d2">get_S</a> ()</td></tr>
-<tr class="memdesc:ae214d0fe0e0fdf51824a50042c41a4d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving all the transition points currently present in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
-<tr class="separator:ae214d0fe0e0fdf51824a50042c41a4d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1583e6ed745df3de1816728e83b3b498" id="r_a1583e6ed745df3de1816728e83b3b498"><td class="memItemLeft" align="right" valign="top">blaze::StaticVector&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a1583e6ed745df3de1816728e83b3b498">getDistalEnds</a> ()</td></tr>
-<tr class="memdesc:a1583e6ed745df3de1816728e83b3b498"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the distal ends of all tubes in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
-<tr class="separator:a1583e6ed745df3de1816728e83b3b498"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a239f4975bb78ff3e65a81644da431f81" id="r_a239f4975bb78ff3e65a81644da431f81"><td class="memItemLeft" align="right" valign="top">blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a239f4975bb78ff3e65a81644da431f81">get_EI</a> ()</td></tr>
-<tr class="memdesc:a239f4975bb78ff3e65a81644da431f81"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the bending stiffness of the tubes in all of the tube segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
-<tr class="separator:a239f4975bb78ff3e65a81644da431f81"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9820488b2f91f984a87ae32daa8b13ce" id="r_a9820488b2f91f984a87ae32daa8b13ce"><td class="memItemLeft" align="right" valign="top">blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a9820488b2f91f984a87ae32daa8b13ce">get_GJ</a> ()</td></tr>
-<tr class="memdesc:a9820488b2f91f984a87ae32daa8b13ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the torsional stiffness of the tubes in all of the tube segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
-<tr class="separator:a9820488b2f91f984a87ae32daa8b13ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a22aacfa0b8291c8aeae7fa88631ed810" id="r_a22aacfa0b8291c8aeae7fa88631ed810"><td class="memItemLeft" align="right" valign="top">blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a22aacfa0b8291c8aeae7fa88631ed810">get_U_x</a> ()</td></tr>
-<tr class="memdesc:a22aacfa0b8291c8aeae7fa88631ed810"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the pre-curvature of the tubes along the 'x' direction in all of the tube segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
-<tr class="separator:a22aacfa0b8291c8aeae7fa88631ed810"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a36073699a85f502fd1d009a921a8244f" id="r_a36073699a85f502fd1d009a921a8244f"><td class="memItemLeft" align="right" valign="top">blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a36073699a85f502fd1d009a921a8244f">get_U_y</a> ()</td></tr>
-<tr class="memdesc:a36073699a85f502fd1d009a921a8244f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the pre-curvature of the tubes along the 'y' direction in all of the tube segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
-<tr class="separator:a36073699a85f502fd1d009a921a8244f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a28b72795f946492881f0cf035dfcc4f6" id="r_a28b72795f946492881f0cf035dfcc4f6"><td class="memItemLeft" align="right" valign="top">std::tuple&lt; blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;, blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;, blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;, blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;, std::vector&lt; double &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a28b72795f946492881f0cf035dfcc4f6">returnParameters</a> ()</td></tr>
-<tr class="memdesc:a28b72795f946492881f0cf035dfcc4f6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving all parameters along all segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
-<tr class="separator:a28b72795f946492881f0cf035dfcc4f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a45413d56b3c944963a709a94d08d259d" id="r_a45413d56b3c944963a709a94d08d259d"><td class="memItemLeft" align="right" valign="top">const std::vector&lt; double &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a45413d56b3c944963a709a94d08d259d">get_S</a> () const</td></tr>
+<tr class="memdesc:a45413d56b3c944963a709a94d08d259d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving all the transition points currently present in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
+<tr class="separator:a45413d56b3c944963a709a94d08d259d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3d196ebc2ef0051b700a10a3d0879f13" id="r_a3d196ebc2ef0051b700a10a3d0879f13"><td class="memItemLeft" align="right" valign="top">const blaze::StaticVector&lt; double, 3UL &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a3d196ebc2ef0051b700a10a3d0879f13">getDistalEnds</a> () const</td></tr>
+<tr class="memdesc:a3d196ebc2ef0051b700a10a3d0879f13"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the distal ends of all tubes in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
+<tr class="separator:a3d196ebc2ef0051b700a10a3d0879f13"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a634c5a918e6487f7e38f95c4c05addee" id="r_a634c5a918e6487f7e38f95c4c05addee"><td class="memItemLeft" align="right" valign="top">const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a634c5a918e6487f7e38f95c4c05addee">get_EI</a> () const</td></tr>
+<tr class="memdesc:a634c5a918e6487f7e38f95c4c05addee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the bending stiffness of the tubes in all of the tube segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
+<tr class="separator:a634c5a918e6487f7e38f95c4c05addee"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4fef9dfb51d83753aa88a236a7ec092b" id="r_a4fef9dfb51d83753aa88a236a7ec092b"><td class="memItemLeft" align="right" valign="top">const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4fef9dfb51d83753aa88a236a7ec092b">get_GJ</a> () const</td></tr>
+<tr class="memdesc:a4fef9dfb51d83753aa88a236a7ec092b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the torsional stiffness of the tubes in all of the tube segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
+<tr class="separator:a4fef9dfb51d83753aa88a236a7ec092b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a213809ae85d9bd06684818e5f3d2a08d" id="r_a213809ae85d9bd06684818e5f3d2a08d"><td class="memItemLeft" align="right" valign="top">const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a213809ae85d9bd06684818e5f3d2a08d">get_U_x</a> () const</td></tr>
+<tr class="memdesc:a213809ae85d9bd06684818e5f3d2a08d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the pre-curvature of the tubes along the 'x' direction in all of the tube segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
+<tr class="separator:a213809ae85d9bd06684818e5f3d2a08d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a51096bfed4880866841e3258cf2dcf36" id="r_a51096bfed4880866841e3258cf2dcf36"><td class="memItemLeft" align="right" valign="top">const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a51096bfed4880866841e3258cf2dcf36">get_U_y</a> () const</td></tr>
+<tr class="memdesc:a51096bfed4880866841e3258cf2dcf36"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving the pre-curvature of the tubes along the 'y' direction in all of the tube segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
+<tr class="separator:a51096bfed4880866841e3258cf2dcf36"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4c741fb47977058d55e7b94c53657c9e" id="r_a4c741fb47977058d55e7b94c53657c9e"><td class="memItemLeft" align="right" valign="top">std::tuple&lt; const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;, const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;, const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;, const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;, const std::vector&lt; double &gt; &amp; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4c741fb47977058d55e7b94c53657c9e">returnParameters</a> () const</td></tr>
+<tr class="memdesc:a4c741fb47977058d55e7b94c53657c9e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a getter method for retrieving all parameters along all segments in the <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a> assembly.  <br /></td></tr>
+<tr class="separator:a4c741fb47977058d55e7b94c53657c9e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pri-attribs" name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
@@ -177,14 +177,14 @@ blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;&#160;</td><td
 blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_U_y</b></td></tr>
 <tr class="memdesc:a519da69431b26e254e460603cd6bbfa3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tubes' precurvature in the y direction. <br /></td></tr>
 <tr class="separator:a519da69431b26e254e460603cd6bbfa3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa0159788986049540993d4b2747d15e4" id="r_aa0159788986049540993d4b2747d15e4"><td class="memItemLeft" align="right" valign="top"><a id="aa0159788986049540993d4b2747d15e4" name="aa0159788986049540993d4b2747d15e4"></a>
-std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_len_curv</b></td></tr>
-<tr class="memdesc:aa0159788986049540993d4b2747d15e4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Arc-length at which precurvature starts in the tubes. <br /></td></tr>
-<tr class="separator:aa0159788986049540993d4b2747d15e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af1cb7fdc291c35fc78f590da42d6f059" id="r_af1cb7fdc291c35fc78f590da42d6f059"><td class="memItemLeft" align="right" valign="top"><a id="af1cb7fdc291c35fc78f590da42d6f059" name="af1cb7fdc291c35fc78f590da42d6f059"></a>
-std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_dist_end</b></td></tr>
-<tr class="memdesc:af1cb7fdc291c35fc78f590da42d6f059"><td class="mdescLeft">&#160;</td><td class="mdescRight">Arc-length at which the tubes terminate (distal-ends). <br /></td></tr>
-<tr class="separator:af1cb7fdc291c35fc78f590da42d6f059"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa2c19fb17eb5c80d1f2cc3f047938cc8" id="r_aa2c19fb17eb5c80d1f2cc3f047938cc8"><td class="memItemLeft" align="right" valign="top"><a id="aa2c19fb17eb5c80d1f2cc3f047938cc8" name="aa2c19fb17eb5c80d1f2cc3f047938cc8"></a>
+blaze::StaticVector&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_len_curv</b></td></tr>
+<tr class="memdesc:aa2c19fb17eb5c80d1f2cc3f047938cc8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Arc-length at which precurvature starts in the tubes. <br /></td></tr>
+<tr class="separator:aa2c19fb17eb5c80d1f2cc3f047938cc8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa321326b7f1a23aa0024b700b5490507" id="r_aa321326b7f1a23aa0024b700b5490507"><td class="memItemLeft" align="right" valign="top"><a id="aa321326b7f1a23aa0024b700b5490507" name="aa321326b7f1a23aa0024b700b5490507"></a>
+blaze::StaticVector&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_dist_end</b></td></tr>
+<tr class="memdesc:aa321326b7f1a23aa0024b700b5490507"><td class="mdescLeft">&#160;</td><td class="mdescRight">Arc-length at which the tubes terminate (distal-ends). <br /></td></tr>
+<tr class="separator:aa321326b7f1a23aa0024b700b5490507"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Class representing Segments between transition points in a Concentric <a class="el" href="classTube.html" title="Represents a tube in the concentric arrangement comprising the CTR robot.">Tube</a> Robot (<a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a>). </p>
@@ -278,17 +278,17 @@ std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="botto
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="a239f4975bb78ff3e65a81644da431f81" name="a239f4975bb78ff3e65a81644da431f81"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a239f4975bb78ff3e65a81644da431f81">&#9670;&#160;</a></span>get_EI()</h2>
+<a id="a634c5a918e6487f7e38f95c4c05addee" name="a634c5a918e6487f7e38f95c4c05addee"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a634c5a918e6487f7e38f95c4c05addee">&#9670;&#160;</a></span>get_EI()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; Segment::get_EI </td>
+          <td class="memname">const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp; Segment::get_EI </td>
           <td>(</td>
           <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -298,17 +298,17 @@ std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
-<a id="a9820488b2f91f984a87ae32daa8b13ce" name="a9820488b2f91f984a87ae32daa8b13ce"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a9820488b2f91f984a87ae32daa8b13ce">&#9670;&#160;</a></span>get_GJ()</h2>
+<a id="a4fef9dfb51d83753aa88a236a7ec092b" name="a4fef9dfb51d83753aa88a236a7ec092b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4fef9dfb51d83753aa88a236a7ec092b">&#9670;&#160;</a></span>get_GJ()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; Segment::get_GJ </td>
+          <td class="memname">const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp; Segment::get_GJ </td>
           <td>(</td>
           <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -318,17 +318,17 @@ std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
-<a id="ae214d0fe0e0fdf51824a50042c41a4d2" name="ae214d0fe0e0fdf51824a50042c41a4d2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae214d0fe0e0fdf51824a50042c41a4d2">&#9670;&#160;</a></span>get_S()</h2>
+<a id="a45413d56b3c944963a709a94d08d259d" name="a45413d56b3c944963a709a94d08d259d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a45413d56b3c944963a709a94d08d259d">&#9670;&#160;</a></span>get_S()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt; double &gt; Segment::get_S </td>
+          <td class="memname">const std::vector&lt; double &gt; &amp; Segment::get_S </td>
           <td>(</td>
           <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -338,17 +338,17 @@ std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
-<a id="a22aacfa0b8291c8aeae7fa88631ed810" name="a22aacfa0b8291c8aeae7fa88631ed810"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a22aacfa0b8291c8aeae7fa88631ed810">&#9670;&#160;</a></span>get_U_x()</h2>
+<a id="a213809ae85d9bd06684818e5f3d2a08d" name="a213809ae85d9bd06684818e5f3d2a08d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a213809ae85d9bd06684818e5f3d2a08d">&#9670;&#160;</a></span>get_U_x()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; Segment::get_U_x </td>
+          <td class="memname">const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp; Segment::get_U_x </td>
           <td>(</td>
           <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -358,17 +358,17 @@ std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
-<a id="a36073699a85f502fd1d009a921a8244f" name="a36073699a85f502fd1d009a921a8244f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a36073699a85f502fd1d009a921a8244f">&#9670;&#160;</a></span>get_U_y()</h2>
+<a id="a51096bfed4880866841e3258cf2dcf36" name="a51096bfed4880866841e3258cf2dcf36"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a51096bfed4880866841e3258cf2dcf36">&#9670;&#160;</a></span>get_U_y()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; Segment::get_U_y </td>
+          <td class="memname">const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp; Segment::get_U_y </td>
           <td>(</td>
           <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -378,17 +378,17 @@ std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
-<a id="a1583e6ed745df3de1816728e83b3b498" name="a1583e6ed745df3de1816728e83b3b498"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1583e6ed745df3de1816728e83b3b498">&#9670;&#160;</a></span>getDistalEnds()</h2>
+<a id="a3d196ebc2ef0051b700a10a3d0879f13" name="a3d196ebc2ef0051b700a10a3d0879f13"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3d196ebc2ef0051b700a10a3d0879f13">&#9670;&#160;</a></span>getDistalEnds()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">blaze::StaticVector&lt; double, 3UL &gt; Segment::getDistalEnds </td>
+          <td class="memname">const blaze::StaticVector&lt; double, 3UL &gt; &amp; Segment::getDistalEnds </td>
           <td>(</td>
           <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -488,17 +488,17 @@ std::array&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
-<a id="a28b72795f946492881f0cf035dfcc4f6" name="a28b72795f946492881f0cf035dfcc4f6"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a28b72795f946492881f0cf035dfcc4f6">&#9670;&#160;</a></span>returnParameters()</h2>
+<a id="a4c741fb47977058d55e7b94c53657c9e" name="a4c741fb47977058d55e7b94c53657c9e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4c741fb47977058d55e7b94c53657c9e">&#9670;&#160;</a></span>returnParameters()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">std::tuple&lt; blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;, blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;, blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;, blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt;, std::vector&lt; double &gt; &gt; Segment::returnParameters </td>
+          <td class="memname">std::tuple&lt; const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;, const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;, const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;, const blaze::HybridMatrix&lt; double, 3UL, 18UL, blaze::columnMajor &gt; &amp;, const std::vector&lt; double &gt; &amp; &gt; Segment::returnParameters </td>
           <td>(</td>
           <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
-          <td></td>
+          <td> const</td>
         </tr>
       </table>
 </div><div class="memdoc">

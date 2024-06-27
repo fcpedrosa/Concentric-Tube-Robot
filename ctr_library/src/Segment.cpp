@@ -66,29 +66,30 @@ Segment &Segment::operator=(Segment &&rhs) noexcept
 // implements a functor to overload the constructors signature and allow recalculation of the CTR segmentation
 void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, const blaze::StaticVector<double, 3UL> &beta)
 {
-	// vector of overall length of each tube
-	std::array<double, 3UL> tb_len = {
-		Tb[0UL]->getTubeLength(),
-		Tb[1UL]->getTubeLength(),
-		Tb[2UL]->getTubeLength()};
-
-	// arc-length at which the ith tube ends -- Innermost tube
-	this->m_dist_end[0UL] = tb_len[0UL] + beta[0UL];
-	// arc-length at which the curved segment of each tube starts  -- Innermost tube
-	this->m_len_curv[0UL] = this->m_dist_end[0UL] - Tb[0UL]->getCurvLen();
-
-	// arc-length at which the ith tube ends -- Intermediate tube
-	this->m_dist_end[1UL] = tb_len[1UL] + beta[1UL];
-	// arc-length at which the curved segment of each tube starts  -- Intermediate tube
-	this->m_len_curv[1UL] = this->m_dist_end[1UL] - Tb[1UL]->getCurvLen();
-
-	// arc-length at which the ith tube ends -- Outermost tube
-	this->m_dist_end[2UL] = tb_len[2UL] + beta[2UL];
-	// arc-length at which the curved segment of each tube starts  -- Outermost tube
-	this->m_len_curv[2UL] = this->m_dist_end[2UL] - Tb[2UL]->getCurvLen();
+	// Vector of overall length of each tube
+    blaze::StaticVector<double, 3UL> tb_len = {
+        Tb[0UL]->getTubeLength(),
+        Tb[1UL]->getTubeLength(),
+        Tb[2UL]->getTubeLength()
+    };
 
 	// clearing tube transition points
 	this->m_S.clear();
+	// Reserving a fixed capacity to avoid reallocations
+	m_S.reserve(10UL);
+	// listing all landmark points at tube segment transitions (s >= 0)
+	this->m_S.push_back(0.00);
+
+	// Arc-length at which each tube ends and the curved segment of each tube starts
+    for (size_t i = 0; i < 3UL; ++i) 
+	{
+        this->m_dist_end[i] = tb_len[i] + beta[i];
+        this->m_len_curv[i] = this->m_dist_end[i] - Tb[i]->getCurvLen();
+
+		// Inserting segment transition points and tube end points
+		this->m_S.push_back(this->m_len_curv[i]);
+        this->m_S.push_back(this->m_dist_end[i]);
+    }
 
 	const double TOLERANCE = 1.00E-7;
 	auto compare = [&](double a, double b) -> bool
@@ -96,27 +97,20 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 		return std::fabs(a - b) < TOLERANCE;
 	};
 
-	// listing all landmark points at tube segment transitions (s >= 0)
-	this->m_S.push_back(0.00);
-	// inserting m_len_curv array into landmarks
-	this->m_S.insert(this->m_S.end(), this->m_len_curv.begin(), this->m_len_curv.end());
-	// inserting m_dist_end array into landmarks
-	this->m_S.insert(this->m_S.end(), this->m_dist_end.begin(), this->m_dist_end.end());
-	// sorting the landmark points
+	// Sorting and removing duplicates
 	std::sort(this->m_S.begin(), this->m_S.end());
-	// acquiring the unique landmark points only
-	auto it = std::unique(this->m_S.begin(), this->m_S.end(), compare); // tolerance used to allow for small differences due to precision limitations
-
-	// deleting any repeated elements
+	auto it = std::unique(this->m_S.begin(), this->m_S.end(), compare);
 	this->m_S.erase(it, this->m_S.end());
 
 	// total number of segments in the current CTR configuration (transition points - 1)
 	size_t len = this->m_S.size() - 1UL;
+
 	// Alocatting memory space for the output matrices
 	this->m_EI.resize(3UL, len, false);
 	this->m_GJ.resize(3UL, len, false);
 	this->m_U_x.resize(3UL, len, false);
 	this->m_U_y.resize(3UL, len, false);
+
 	// filling matrices with defaul zero values
 	this->m_EI = this->m_GJ = this->m_U_x = this->m_U_y = 0.00;
 
@@ -157,50 +151,49 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 }
 
 // getter method for retrieving the transition points defining the boundaries of all CTR segments
-std::vector<double> Segment::get_S()
+const std::vector<double> & Segment::get_S() const
 {
 	return this->m_S;
 }
 
 // getter method for returning the distal ends of all CTR tubes
-blaze::StaticVector<double, 3UL> Segment::getDistalEnds()
+const blaze::StaticVector<double, 3UL>& Segment::getDistalEnds() const
 {
-	blaze::StaticVector<double, 3UL> distalEnds = {this->m_dist_end[0UL], this->m_dist_end[1UL], this->m_dist_end[2UL]};
-	return distalEnds;
+	return this->m_dist_end;
 }
 
 // getter method for retrieving the vectors of tube bending stiffness in all CTR segments
-blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> Segment::get_EI()
+const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_EI() const
 {
 	return this->m_EI;
 }
 
 // getter method for retrieving the vectors of tube torional stiffness in all CTR segments
-blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> Segment::get_GJ()
+const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_GJ() const
 {
 	return this->m_GJ;
 }
 
 // getter method for retrieving the vectors of tube precurvatures along X in all CTR segments
-blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> Segment::get_U_x()
+const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_U_x() const
 {
 	return this->m_U_x;
 }
 
 // getter method for retrieving the vectors of tube precurvatures along Y in all CTR segments
-blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> Segment::get_U_y()
+const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_U_y() const
 {
 	return this->m_U_y;
 }
 
 // method for returning all parameters along all CTR segments
-std::tuple<blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor>,
-		   blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor>,
-		   blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor>,
-		   blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor>,
-		   std::vector<double>>
-Segment::returnParameters()
+std::tuple<const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
+		   const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
+		   const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
+		   const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
+		   const std::vector<double> &>
+Segment::returnParameters() const
 {
 
-	return std::make_tuple(this->m_EI, this->m_GJ, this->m_U_x, this->m_U_y, this->m_S);
+	return std::tie(this->m_EI, this->m_GJ, this->m_U_x, this->m_U_y, this->m_S);
 }
