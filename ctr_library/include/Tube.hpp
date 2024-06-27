@@ -171,7 +171,7 @@ public:
 	/**
 	 * @brief Implements a setter method for updating the pre-curvature of the Tube object
 	 *
-	 * @param A 3-dimensional static Blaze vector with the new pre-curvature of the tube
+	 * @param u_ast 3-dimensional static Blaze vector with the new pre-curvature of the tube
 	 */
 	void set_u_ast(const blaze::StaticVector<double, 3UL> &u_ast);
 
@@ -179,7 +179,7 @@ public:
 	 * @brief Implements a setter method for updating the pre-curvature of the Tube object along a specific direction
 	 *
 	 * @param id A size_t index of the direction 0: 'x', 1: 'y'
-	 * @param A scalar with the pre-curvature of the tube along the 'x' or 'y' directions, as determined by id
+	 * @param u scalar with the pre-curvature of the tube along the 'x' or 'y' directions, as determined by id
 	 */
 	void set_u_ast(const size_t id, const double u);
 
@@ -221,7 +221,7 @@ public:
 	/**
 	 * @brief Implements a getter method for retrieving the bending/torsional stiffness of the Tube along a specific direction
 	 *
-	 * @param A size_t index of the direction: 0: 'x', 1: 'y', 2: 'z'
+	 * @param i size_t index of the direction: 0: 'x', 1: 'y', 2: 'z'
 	 */
 	double getK(int i);
 

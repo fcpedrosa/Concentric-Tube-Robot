@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(CTR_General_Use VERSION 2.0.1 LANGUAGES CXX)
+project(CTR_General_Use VERSION 2.1.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -89,7 +89,7 @@ if(DOXYGEN_FOUND)
 
     add_custom_target(doc_doxygen ALL
         COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM)
 endif()

@@ -286,7 +286,7 @@ blaze::StaticMatrix<double, 3UL, 6UL> CTR::jacobian(const blaze::StaticVector<do
 {
 	blaze::StaticMatrix<double, 3UL, 6UL, blaze::columnMajor> jac;
 	blaze::StaticVector<double, 6UL> q_Original(this->m_q), q_Perturbed(this->m_q), q_Scaled(this->m_q);
-	double incr_scale = 1.00E-2, incr_floor = 1.00E-5;
+	double incr_scale = 1.00E-3, incr_floor = 5.00E-4;
 
 	q_Scaled *= incr_scale;
 	q_Scaled = blaze::generate(6UL, [&](size_t idx)
