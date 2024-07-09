@@ -103,7 +103,7 @@ public:
 	 * @param dyds A 15-dimensional static Blaze vector to be computed by the functor. Once the functor is executed, 'dyds' corresponds to the spatial derivative of the state vector at the arc-length 's'.
 	 * @param s The nonnegative scalar corresponding to the arc-length along the CTR backbone at which the computations are taking place
 	 */
-	void operator()(const state_type &y, state_type &dyds, const double s);
+	void operator()(const state_type &y, state_type &dyds, const double s) noexcept;
 
 	/**
 	 * @brief Implements a setter method for updating the kinematic parameters before computation of the ODEs at each arc-length 's'

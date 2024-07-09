@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 project(CTR_General_Use VERSION 2.1.4 LANGUAGES CXX)
 
+# Set the CMP0167 policy to find the upstream BoostConfig.cmake directly
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)

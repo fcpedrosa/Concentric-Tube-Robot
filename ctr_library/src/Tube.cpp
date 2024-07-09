@@ -3,10 +3,6 @@
 #include "Tube.hpp"
 #include <math.h> // pow()
 
-// defining fractions of the constant pi
-constexpr double Tube::pi_64 = M_PI / 64.00;
-constexpr double Tube::pi_32 = M_PI / 32.00;
-
 // default class constructor
 Tube::Tube()
 {
