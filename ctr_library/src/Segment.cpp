@@ -67,7 +67,7 @@ Segment &Segment::operator=(Segment &&rhs) noexcept
 void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, const blaze::StaticVector<double, 3UL> &beta)
 {
 	// Vector of overall length of each tube
-    blaze::StaticVector<double, 3UL> tb_len = {
+    const blaze::StaticVector<double, 3UL> tb_len = {
         Tb[0UL]->getTubeLength(),
         Tb[1UL]->getTubeLength(),
         Tb[2UL]->getTubeLength()
@@ -78,7 +78,7 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 	// Reserving a fixed capacity to avoid reallocations
 	m_S.reserve(10UL);
 	// listing all landmark points at tube segment transitions (s >= 0)
-	this->m_S.push_back(0.00);
+	this->m_S.emplace_back(0.00);
 
 	// Arc-length at which each tube ends and the curved segment of each tube starts
     for (size_t i = 0; i < 3UL; ++i) 
@@ -87,11 +87,11 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
         this->m_len_curv[i] = this->m_dist_end[i] - Tb[i]->getCurvLen();
 
 		// Inserting segment transition points and tube end points
-		this->m_S.push_back(this->m_len_curv[i]);
-        this->m_S.push_back(this->m_dist_end[i]);
+		this->m_S.emplace_back(this->m_len_curv[i]);
+        this->m_S.emplace_back(this->m_dist_end[i]);
     }
 
-	const double TOLERANCE = 1.00E-7;
+	static constexpr double TOLERANCE = 1.00E-7;
 	auto compare = [&](double a, double b) -> bool
 	{
 		return std::fabs(a - b) < TOLERANCE;

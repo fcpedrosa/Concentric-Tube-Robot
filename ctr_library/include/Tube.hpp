@@ -15,12 +15,12 @@ private:
 	/**
 	 * @brief Pi constant divided by 64.
 	 */
-	static const double pi_64;
+	static constexpr double pi_64 = M_PI / 64.00;
 
 	/**
 	 * @brief Pi constant divided by 32.
 	 */
-	static const double pi_32;
+	static constexpr double pi_32 = M_PI / 32.00;
 
 	/**
 	 * @brief Outer diameter of the tube.

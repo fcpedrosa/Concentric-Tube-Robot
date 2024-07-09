@@ -66,7 +66,7 @@ ODESystem &ODESystem::operator=(ODESystem &&rhs) noexcept
 }
 
 // functor that implements the system of ODEs governing a three-tube CTR
-void ODESystem::operator()(const state_type &y, state_type &dyds, const double s)
+void ODESystem::operator()(const state_type &y, state_type &dyds, const double s) noexcept
 {
 	// 1st element of y computes the bending moment of the first (innermost) tube along the x direction
 	// 2nd element of y computes the bending moment of the first (innermost) tube along the y direction
@@ -74,38 +74,48 @@ void ODESystem::operator()(const state_type &y, state_type &dyds, const double s
 	// next 2 elements of y are twist angles, theta_i = [theta_1 theta_2  theta_3]
 	// last 7 elements are r(position) and h(quaternion-orientations) of the local frame, respectively at each arc-length s
 
-	double dtheta_2 = y[3UL] - y[2UL];
-	double dtheta_3 = y[4UL] - y[2UL];
+	const double dtheta_2 = y[3UL] - y[2UL];
+	const double dtheta_3 = y[4UL] - y[2UL];
 
 	// implementing curvature equation u_i = transpose(R_z(theta_i))*u_1 + \dot{theta_i}*e3
-	blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R1, R2(mathOp::rotz(y[6UL])), R3(mathOp::rotz(y[7UL]));
-	blaze::StaticVector<double, 3UL> u1, u2, u3, mb = {y[0UL], y[1UL], 0.00};
+	blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R1;
+	const blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R2(mathOp::rotz(y[6UL]));
+	const blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R3(mathOp::rotz(y[7UL]));
 
-	blaze::StaticVector<double, 3UL> u1_ast = {m_u_ast_x[0UL], m_u_ast_y[0UL], 0.00};
-	blaze::StaticVector<double, 3UL> u2_ast = {m_u_ast_x[1UL], m_u_ast_y[1UL], 0.00};
-	blaze::StaticVector<double, 3UL> u3_ast = {m_u_ast_x[2UL], m_u_ast_y[2UL], 0.00};
+	const blaze::StaticVector<double, 3UL> u1_ast = {m_u_ast_x[0UL], m_u_ast_y[0UL], 0.00};
+	const blaze::StaticVector<double, 3UL> u2_ast = {m_u_ast_x[1UL], m_u_ast_y[1UL], 0.00};
+	const blaze::StaticVector<double, 3UL> u3_ast = {m_u_ast_x[2UL], m_u_ast_y[2UL], 0.00};
 
 	// estimating curvature of the first tube along the x and y directions
-	blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K_inv, K1, K2, K3;
+	const blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K1 = {
+		{m_EI[0UL], 0.00, 0.00},
+		{0.00, m_EI[0UL], 0.00},
+		{0.00, 0.00, m_GJ[0UL]}};
 
-	K1(0UL, 0UL) = K1(1UL, 1UL) = m_EI[0UL];
-	K1(2UL, 2UL) = m_GJ[0UL];
-	K2(0UL, 0UL) = K2(1UL, 1UL) = m_EI[1UL];
-	K2(2UL, 2UL) = m_GJ[1UL];
-	K3(0UL, 0UL) = K3(1UL, 1UL) = m_EI[2UL];
-	K3(2UL, 2UL) = m_GJ[2UL];
+	const blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K2 = {
+		{m_EI[1UL], 0.00, 0.00},
+		{0.00, m_EI[1UL], 0.00},
+		{0.00, 0.00, m_GJ[1UL]}};
 
-	K_inv = blaze::inv(K1 + K2 + K3);
+	const blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K3 = {
+		{m_EI[2UL], 0.00, 0.00},
+		{0.00, m_EI[2UL], 0.00},
+		{0.00, 0.00, m_GJ[2UL]}};
 
-	mb[2UL] = K1(2UL, 2UL) * y[2UL] + K2(2UL, 2UL) * y[3UL] + K3(2UL, 2UL) * y[4UL];
+	const blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K_inv{blaze::inv(K1 + K2 + K3)};
+
+	const blaze::StaticVector<double, 3UL> mb{y[0UL],
+											  y[1UL],
+											  K1(2UL, 2UL) * y[2UL] + K2(2UL, 2UL) * y[3UL] + K3(2UL, 2UL) * y[4UL]};
+
 	// estimating the curvature of the innermost tube along the x,y directions
-	u1 = K_inv * (mb + (K1 * u1_ast) + (R2 * K2 * u2_ast) + (R3 * K3 * u3_ast)); // expression valid only along the x,y directions
+	blaze::StaticVector<double, 3UL> u1 = K_inv * (mb + (K1 * u1_ast) + (R2 * K2 * u2_ast) + (R3 * K3 * u3_ast)); // expression valid only along the x,y directions
 	// grabbing the torsion along the z-direction from state vector
 	u1[2UL] = y[2UL];
 
 	// curvatures of the intermediate and outermost tubes
-	u2 = blaze::trans(R2) * u1 + (dtheta_2 * m_e3);
-	u3 = blaze::trans(R3) * u1 + (dtheta_3 * m_e3);
+	const blaze::StaticVector<double, 3UL> u2 = blaze::trans(R2) * u1 + (dtheta_2 * m_e3);
+	const blaze::StaticVector<double, 3UL> u3 = blaze::trans(R3) * u1 + (dtheta_3 * m_e3);
 
 	// gets orientation of the innermost tube (Tb 1) at the current arc-length
 	mathOp::getSO3(blaze::subvector<11UL, 4UL>(y), R1);
@@ -129,7 +139,7 @@ void ODESystem::operator()(const state_type &y, state_type &dyds, const double s
 	computeTwists(2UL, u3);
 
 	// internal moment of tube 1 along the x and y directions
-	blaze::subvector<0UL, 2UL>(dyds) = blaze::subvector<0UL, 2UL>( -blaze::cross(u1, mb) - mathOp::hatPreMultiply(m_e3, blaze::trans(R1)) * this->m_f); // - u^mb - e3^R1'F
+	blaze::subvector<0UL, 2UL>(dyds) = blaze::subvector<0UL, 2UL>(-mathOp::hatOperator(u1) * mb - mathOp::hatPreMultiply(m_e3, blaze::trans(R1)) * this->m_f); // - u^mb - e3^R1'F
 
 	// spatial derivative of the quaternion representation h_dot
 	blaze::subvector<11UL, 4UL>(dyds) = mathOp::quaternionDiff(u1, blaze::subvector<11UL, 4UL>(y));

@@ -101,7 +101,7 @@ Collaboration diagram for ODESystem:</div>
 <div class="dyncontent">
 <div class="center"><img src="classODESystem__coll__graph.png" border="0" usemap="#aODESystem_coll__map" alt="Collaboration graph"/></div>
 <map name="aODESystem_coll__map" id="aODESystem_coll__map">
-<area shape="rect" title="Implements system of Ordinary Differential equations (ODEs) that model the kinematics of a three&#45;tube..." alt="" coords="5,5,268,816"/>
+<area shape="rect" title="Implements system of Ordinary Differential equations (ODEs) that model the kinematics of a three&#45;tube..." alt="" coords="5,5,268,833"/>
 </map>
 </div>
 <table class="memberdecls">
@@ -130,9 +130,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ac70636af18a2f02c18f29334fb966be2" id="r_ac70636af18a2f02c18f29334fb966be2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classODESystem.html">ODESystem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ac70636af18a2f02c18f29334fb966be2">operator=</a> (<a class="el" href="classODESystem.html">ODESystem</a> &amp;&amp;rhs) noexcept</td></tr>
 <tr class="memdesc:ac70636af18a2f02c18f29334fb966be2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements the move assignment operator for the <a class="el" href="classODESystem.html" title="Implements system of Ordinary Differential equations (ODEs) that model the kinematics of a three-tube...">ODESystem</a> class.  <br /></td></tr>
 <tr class="separator:ac70636af18a2f02c18f29334fb966be2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae5f9554f3f09835d6793bf24b4863539" id="r_ae5f9554f3f09835d6793bf24b4863539"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae5f9554f3f09835d6793bf24b4863539">operator()</a> (const state_type &amp;y, state_type &amp;dyds, const double s)</td></tr>
-<tr class="memdesc:ae5f9554f3f09835d6793bf24b4863539"><td class="mdescLeft">&#160;</td><td class="mdescRight">Functor that overloads the constructor's signature and implements the system of ODEs governing a three-tube <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a>.  <br /></td></tr>
-<tr class="separator:ae5f9554f3f09835d6793bf24b4863539"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a540544526f3e1bf8b0ca9508901ebd29" id="r_a540544526f3e1bf8b0ca9508901ebd29"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a540544526f3e1bf8b0ca9508901ebd29">operator()</a> (const state_type &amp;y, state_type &amp;dyds, const double s) noexcept</td></tr>
+<tr class="memdesc:a540544526f3e1bf8b0ca9508901ebd29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Functor that overloads the constructor's signature and implements the system of ODEs governing a three-tube <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a>.  <br /></td></tr>
+<tr class="separator:a540544526f3e1bf8b0ca9508901ebd29"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a73a8f5d68079251d044f21935f5aabc4" id="r_a73a8f5d68079251d044f21935f5aabc4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a73a8f5d68079251d044f21935f5aabc4">setEquationParameters</a> (const blaze::StaticVector&lt; double, 3UL &gt; &amp;u_ast_x, const blaze::StaticVector&lt; double, 3UL &gt; &amp;u_ast_y, const blaze::StaticVector&lt; double, 3UL &gt; &amp;EI, const blaze::StaticVector&lt; double, 3UL &gt; &amp;GJ, const blaze::StaticVector&lt; double, 3UL &gt; &amp;force)</td></tr>
 <tr class="memdesc:a73a8f5d68079251d044f21935f5aabc4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implements a setter method for updating the kinematic parameters before computation of the ODEs at each arc-length 's'.  <br /></td></tr>
 <tr class="separator:a73a8f5d68079251d044f21935f5aabc4"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -268,11 +268,14 @@ blaze::StaticVector&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" vali
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="ae5f9554f3f09835d6793bf24b4863539" name="ae5f9554f3f09835d6793bf24b4863539"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae5f9554f3f09835d6793bf24b4863539">&#9670;&#160;</a></span>operator()()</h2>
+<a id="a540544526f3e1bf8b0ca9508901ebd29" name="a540544526f3e1bf8b0ca9508901ebd29"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a540544526f3e1bf8b0ca9508901ebd29">&#9670;&#160;</a></span>operator()()</h2>
 
 <div class="memitem">
 <div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">void ODESystem::operator() </td>
@@ -290,6 +293,11 @@ blaze::StaticVector&lt; double, 3UL &gt;&#160;</td><td class="memItemRight" vali
           <td class="paramtype">const double</td>          <td class="paramname"><span class="paramname"><em>s</em></span>&#160;)</td>
         </tr>
       </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
 </div><div class="memdoc">
 
 <p>Functor that overloads the constructor's signature and implements the system of ODEs governing a three-tube <a class="el" href="classCTR.html" title="Class implementing a three-tube Concentric Tube Robot (CTR).">CTR</a>. </p>
