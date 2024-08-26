@@ -16,6 +16,7 @@
 #include "Observer.hpp"
 #include "mathOperations.hpp"
 #include <boost/numeric/odeint.hpp>
+#include "boostBlazeAlgebra.hpp"
 #include <memory>
 #include <tuple>
 

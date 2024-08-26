@@ -133,39 +133,30 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	this->reset(initGuess); // resets CTR parameters and variables for a new iteration of the ode-solver
 
 	// retrieving the bending & torsional stiffness and precurvatures in all segments of the CTR in the current
-	auto [EI, GJ, U_x, U_y, S] = this->m_segment->returnParameters();
+	const auto [EI, GJ, U_x, U_y, S] = this->m_segment->returnParameters();
 
-	// ##################################################### NUMERICAL METHODS FOR ODE INTEGRATION #####################################################
+		// ##################################################### NUMERICAL METHOD FOR ODE INTEGRATION #####################################################
 
 	// ********************************  8-th ORDER ADAPTIVE ADAMS-BASHFORTH-MOULTON STEPPER ********************************
-	boost::numeric::odeint::adaptive_adams_bashforth_moulton<8UL, state_type, double, state_type, double,
-															 boost::numeric::odeint::vector_space_algebra, boost::numeric::odeint::default_operations, boost::numeric::odeint::initially_resizer>
+	boost::numeric::odeint::adaptive_adams_bashforth_moulton<8UL,
+															 State,
+															 double,
+															 State,
+															 double,
+															 boost::numeric::odeint::custom_algebra,
+															 boost::numeric::odeint::default_operations,
+															 boost::numeric::odeint::initially_resizer>
 		abm8_stepper;
 
-	// ********************************  4-th ORDER CLASSIC RUNGE-KUTTA STEPPER ********************************
-	// typedef boost::numeric::odeint::runge_kutta4_classic<state_type, double, state_type, double, boost::numeric::odeint::vector_space_algebra,
-	// 	boost::numeric::odeint::default_operations, boost::numeric::odeint::initially_resizer> rk4_stepper;
-
-	// ********************************  5-th ORDER CASH-KARP STEPPER ********************************
-	// typedef boost::numeric::odeint::runge_kutta_cash_karp54<state_type, double, state_type, double, boost::numeric::odeint::vector_space_algebra,
-	// 	boost::numeric::odeint::default_operations, boost::numeric::odeint::initially_resizer> rkk54_stepper;
-
-	// ********************************  5-th ORDER DORMAND-PRINCE RUNGE-KUTTA ********************************
-	// typedef boost::numeric::odeint::runge_kutta_dopri5<state_type, double, state_type, double, boost::numeric::odeint::vector_space_algebra> rkd5_stepper;
-
-	// ********************************  BULIRSCH-STOER STEPPER ********************************
-	// typedef boost::numeric::odeint::bulirsch_stoer<state_type, double, state_type, double, boost::numeric::odeint::vector_space_algebra,
-	// 	boost::numeric::odeint::default_operations, boost::numeric::odeint::initially_resizer> blstr_stepper;
-
-	// ******************************** RUUNGE-KUTTA-FEHLBERG (RKF78) STEPPER ********************************
-	// typedef boost::numeric::odeint::runge_kutta_fehlberg78<state_type, double, state_type, double, boost::numeric::odeint::vector_space_algebra,
-	// 	boost::numeric::odeint::default_operations, boost::numeric::odeint::initially_resizer> rk78_stepper;
-
-	// #################################################################################################################################################
-
 	// start and end points, in terms of arc-length s, of each CTR segment and initial step-size for integration (ds)
-	double s_start, s_end, ds;
-	constexpr double stepResolution = 1.00 / 25.00;
+	double startArcLength, endArcLength;
+	double constexpr ds = 1.00E-3;
+
+	// Tolerance parameters for the adaptive stepper
+	constexpr double abs_tol = 1.00E-10;
+	constexpr double rel_tol = 1.00E-8;
+
+	auto controlled_stepper = boost::numeric::odeint::make_controlled(abs_tol, rel_tol, abm8_stepper);
 
 	// instantiating the vector of initial conditions for solving the state equations (15 x 1)
 	state_type y_0;
@@ -198,20 +189,27 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	y_0[14UL] = this->m_h_0[3UL];
 
 	// iterating through the tube segments comprising the CTR
-	size_t len_seg = S.size() - 1UL;
+	const size_t len_seg = S.size() - 1UL;
 	for (size_t seg = 0; seg < len_seg; ++seg)
 	{
 		// specifying the interval of integration (in terms of tube segment arc-lengths)
-		s_start = S[seg];
-		s_end = S[seg + 1UL];
-		ds = (s_end - s_start) * stepResolution; // 25 points per segment
+		startArcLength = S[seg];
+		endArcLength = S[seg + 1UL];
 
 		// passing the tube parameters in the segment to the state equation method
 		this->m_stateEquations->setEquationParameters(blaze::column(U_x, seg), blaze::column(U_y, seg), blaze::column(EI, seg), blaze::column(GJ, seg), this->m_wf);
 
 		// ##################################################### NUMERICAL INTEGRATION #####################################################
 		// Employs the selected stepper (Numerical method) and integrates the system of ODEs along the segment considered
-		boost::numeric::odeint::integrate_adaptive(abm8_stepper, *this->m_stateEquations, y_0, s_start, s_end, ds, *this->m_stateObserver);
+		boost::numeric::odeint::integrate_adaptive(
+			abm8_stepper,			 // controlled adaptive stepper with error tolerances
+			*this->m_stateEquations, // ODE system
+			y_0,					 // initial conditions
+			startArcLength,			 // initial arc-length (start of i-th CTR segment)
+			endArcLength,			 // initial arc-length (end of i-th CTR segment)
+			ds,						 // initial spatial step
+			*this->m_stateObserver	 // observer for saving the values of the state vector
+		);
 	}
 
 	//
@@ -227,7 +225,7 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	// grabbing the orientation at the distal end
 	mathOp::getSO3(blaze::subvector<11UL, 4UL>(y_0), R1);
 
-	blaze::StaticVector<double, 3UL> distalMoment = blaze::trans(R1) * m_wm;
+	const blaze::StaticVector<double, 3UL> distalMoment = blaze::trans(R1) * m_wm;
 
 	// Residue vector due to infringment of the distal boundary conditions || Residue = [ mb_x - Wm_x, mb_y - Wm_y, u1_z, u2_z, u3_z ]
 	blaze::StaticVector<double, 5UL> Residue = {y_0[0UL] - distalMoment[0UL],
@@ -237,18 +235,18 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 												0.00};
 
 	// lambda function that finds the u_z curvatures at the distal ends of tubes 2 and 3
-	auto computeResidue = [&](double distalEnd, size_t index) -> void
+	auto computeResidue = [&](const double distalEnd, const size_t index) -> void
 	{
 		// must use some tolerance when comparing floating points
-		auto itt = std::lower_bound(this->m_s.begin(), this->m_s.end(), distalEnd - 1.00E-7); // finds where tube ends (with a 0.0001mm tolerance)
+		const auto itt = std::lower_bound(this->m_s.begin(), this->m_s.end(), distalEnd - 1.00E-7); // finds where tube ends (with a 0.0001mm tolerance)
 
-		auto id = std::distance(this->m_s.begin(), itt);
+		const auto id = std::distance(this->m_s.begin(), itt);
 		// ui_z at the distal end of the i-th tube
 		Residue[2UL + index] = this->m_y[id][2UL + index];
 	};
 
 	// Computing the Residues associated to the twist curvatures (rate of twist) at the distal ends of tubes 2 and 3
-	blaze::StaticVector<double, 3UL> distEnd(this->m_segment->getDistalEnds()); // arc-lengths at which the distal ends of the tubes are currently
+	const blaze::StaticVector<double, 3UL> distEnd(this->m_segment->getDistalEnds()); // arc-lengths at which the distal ends of the tubes are currently
 
 	computeResidue(distEnd[1UL], 1UL);
 	computeResidue(distEnd[2UL], 2UL);

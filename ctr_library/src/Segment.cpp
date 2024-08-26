@@ -103,7 +103,7 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 	this->m_S.erase(it, this->m_S.end());
 
 	// total number of segments in the current CTR configuration (transition points - 1)
-	size_t len = this->m_S.size() - 1UL;
+	const size_t len = this->m_S.size() - 1UL;
 
 	// Alocatting memory space for the output matrices
 	this->m_EI.resize(3UL, len, false);

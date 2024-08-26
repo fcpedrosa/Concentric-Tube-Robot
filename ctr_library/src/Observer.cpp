@@ -6,6 +6,6 @@
 // observer functor for capturing data from Boost::odeInt integrator
 void Observer::operator()(const state_type &states, double s)
 {
-	m_states.push_back(states);
-	m_arcLength.push_back(s);
+	m_states.emplace_back(states);
+	m_arcLength.emplace_back(s);
 }
