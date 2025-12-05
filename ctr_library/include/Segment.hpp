@@ -3,6 +3,7 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <tuple>
 #include "Tube.hpp"
 
 /**
@@ -11,37 +12,37 @@
 class Segment
 {
 private:
-    /** 
+    /**
      * @brief Arc-length of each tube transition point.
      */
     std::vector<double> m_S;
 
-    /** 
+    /**
      * @brief Tubes' bending stiffness -- x, y directions.
      */
     blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> m_EI;
 
-    /** 
+    /**
      * @brief Tubes' torsional stiffness -- z direction.
      */
     blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> m_GJ;
 
-    /** 
+    /**
      * @brief Tubes' precurvature in the x direction.
      */
     blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> m_U_x;
 
-    /** 
+    /**
      * @brief Tubes' precurvature in the y direction.
      */
     blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> m_U_y;
 
-    /** 
+    /**
      * @brief Arc-length at which precurvature starts in the tubes.
      */
     blaze::StaticVector<double, 3UL> m_len_curv;
 
-    /** 
+    /**
      * @brief Arc-length at which the tubes terminate (distal-ends).
      */
     blaze::StaticVector<double, 3UL> m_dist_end;
@@ -108,52 +109,52 @@ public:
      *
      * @return A std::vector containing the arc-length values (in meters) at which there are tube transition points (where tube ends or where there's a step change in the tube's pre-curvatures).
      */
-    const std::vector<double>& get_S() const;
+    [[nodiscard]] const std::vector<double> &get_S() const noexcept;
 
     /**
      * @brief Implements a getter method for retrieving the distal ends of all tubes in the CTR assembly.
      *
      * @return A blaze::StaticVector containing the arc-length values (in meters) at which each tube in the CTR assembly terminates.
      */
-    const blaze::StaticVector<double, 3UL> &getDistalEnds() const;
+    [[nodiscard]] const blaze::StaticVector<double, 3UL> &getDistalEnds() const noexcept;
 
     /**
      * @brief Implements a getter method for retrieving the bending stiffness of the tubes in all of the tube segments in the CTR assembly.
      *
      * @return A 3xN hybrid Blaze matrix containing the bending stiffness [k_x, k_y, 0] for the tube assembly between the transition points.
      */
-    const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &get_EI() const;
+    [[nodiscard]] const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &get_EI() const noexcept;
 
     /**
      * @brief Implements a getter method for retrieving the torsional stiffness of the tubes in all of the tube segments in the CTR assembly.
      *
      * @return A 3xN hybrid Blaze matrix containing the torsional stiffness [0, 0, k_z] for the tube assembly between the transition points.
      */
-    const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &get_GJ() const;
+    [[nodiscard]] const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &get_GJ() const noexcept;
 
     /**
      * @brief Implements a getter method for retrieving the pre-curvature of the tubes along the 'x' direction in all of the tube segments in the CTR assembly.
      *
      * @return A 3xN hybrid Blaze matrix containing the pre-curvatures along the 'x' direction for the tubes in all segments. The 1st, 2nd, and 3rd row of the matrix correspond to the pre-curvatures of the 1st, 2nd, and 3rd tubes, where the 1st tube is the innermost one.
      */
-    const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &get_U_x() const;
+    [[nodiscard]] const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &get_U_x() const noexcept;
 
     /**
      * @brief Implements a getter method for retrieving the pre-curvature of the tubes along the 'y' direction in all of the tube segments in the CTR assembly.
      *
      * @return A 3xN hybrid Blaze matrix containing the pre-curvatures along the 'y' direction for the tubes in all segments. The 1st, 2nd, and 3rd row of the matrix correspond to the pre-curvatures of the 1st, 2nd, and 3rd tubes, where the 1st tube is the innermost one.
      */
-    const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &get_U_y() const;
+    [[nodiscard]] const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &get_U_y() const noexcept;
 
     /**
      * @brief Implements a getter method for retrieving all parameters along all segments in the CTR assembly.
      *
      * @return A Tuple containing: a 3xN Blaze matrix of the bending stiffness (EI), a 3xN Blaze matrix of the torsional stiffness (GJ), a 3xN Blaze matrix of the pre-curvature along the 'x' direction (U_x), a 3xN Blaze matrix of the pre-curvature along the 'y' direction (U_y), and a std::vector with the arc-length (in meters) at which a tube transition occurs (S).
      */
-    std::tuple<const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
-			   const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
-			   const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
-			   const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
-			   const std::vector<double> &>
-	returnParameters() const;
+    [[nodiscard]] std::tuple<const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
+                             const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
+                             const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
+                             const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
+                             const std::vector<double> &>
+    returnParameters() const noexcept;
 };

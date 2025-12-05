@@ -2,6 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 #include "Segment.hpp"
 #include <algorithm>
+#include <cmath>
 
 // overloaded constructor
 Segment::Segment(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, const blaze::StaticVector<double, 3UL> &beta)
@@ -67,11 +68,10 @@ Segment &Segment::operator=(Segment &&rhs) noexcept
 void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, const blaze::StaticVector<double, 3UL> &beta)
 {
 	// Vector of overall length of each tube
-    const blaze::StaticVector<double, 3UL> tb_len = {
-        Tb[0UL]->getTubeLength(),
-        Tb[1UL]->getTubeLength(),
-        Tb[2UL]->getTubeLength()
-    };
+	const blaze::StaticVector<double, 3UL> tb_len = {
+		Tb[0UL]->getTubeLength(),
+		Tb[1UL]->getTubeLength(),
+		Tb[2UL]->getTubeLength()};
 
 	// clearing tube transition points
 	this->m_S.clear();
@@ -81,15 +81,15 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 	this->m_S.emplace_back(0.00);
 
 	// Arc-length at which each tube ends and the curved segment of each tube starts
-    for (size_t i = 0; i < 3UL; ++i) 
+	for (size_t i = 0; i < 3UL; ++i)
 	{
-        this->m_dist_end[i] = tb_len[i] + beta[i];
-        this->m_len_curv[i] = this->m_dist_end[i] - Tb[i]->getCurvLen();
+		this->m_dist_end[i] = tb_len[i] + beta[i];
+		this->m_len_curv[i] = this->m_dist_end[i] - Tb[i]->getCurvLen();
 
 		// Inserting segment transition points and tube end points
 		this->m_S.emplace_back(this->m_len_curv[i]);
-        this->m_S.emplace_back(this->m_dist_end[i]);
-    }
+		this->m_S.emplace_back(this->m_dist_end[i]);
+	}
 
 	static constexpr double TOLERANCE = 1.00E-7;
 	auto compare = [&](double a, double b) -> bool
@@ -110,9 +110,6 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 	this->m_GJ.resize(3UL, len, false);
 	this->m_U_x.resize(3UL, len, false);
 	this->m_U_y.resize(3UL, len, false);
-
-	// filling matrices with defaul zero values
-	this->m_EI = this->m_GJ = this->m_U_x = this->m_U_y = 0.00;
 
 	size_t b, c, span;
 	double element;
@@ -151,37 +148,37 @@ void Segment::recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &
 }
 
 // getter method for retrieving the transition points defining the boundaries of all CTR segments
-const std::vector<double> & Segment::get_S() const
+const std::vector<double> &Segment::get_S() const noexcept
 {
 	return this->m_S;
 }
 
 // getter method for returning the distal ends of all CTR tubes
-const blaze::StaticVector<double, 3UL>& Segment::getDistalEnds() const
+const blaze::StaticVector<double, 3UL> &Segment::getDistalEnds() const noexcept
 {
 	return this->m_dist_end;
 }
 
 // getter method for retrieving the vectors of tube bending stiffness in all CTR segments
-const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_EI() const
+const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_EI() const noexcept
 {
 	return this->m_EI;
 }
 
 // getter method for retrieving the vectors of tube torional stiffness in all CTR segments
-const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_GJ() const
+const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_GJ() const noexcept
 {
 	return this->m_GJ;
 }
 
 // getter method for retrieving the vectors of tube precurvatures along X in all CTR segments
-const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_U_x() const
+const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_U_x() const noexcept
 {
 	return this->m_U_x;
 }
 
 // getter method for retrieving the vectors of tube precurvatures along Y in all CTR segments
-const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_U_y() const
+const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &Segment::get_U_y() const noexcept
 {
 	return this->m_U_y;
 }
@@ -192,7 +189,7 @@ std::tuple<const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
 		   const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
 		   const blaze::HybridMatrix<double, 3UL, 18UL, blaze::columnMajor> &,
 		   const std::vector<double> &>
-Segment::returnParameters() const
+Segment::returnParameters() const noexcept
 {
 
 	return std::tie(this->m_EI, this->m_GJ, this->m_U_x, this->m_U_y, this->m_S);

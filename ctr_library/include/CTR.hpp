@@ -15,9 +15,12 @@
 #include "ODESystem.hpp"
 #include "Observer.hpp"
 #include "mathOperations.hpp"
-#include <boost/numeric/odeint.hpp>
+#include "boostBlazeAlgebra.hpp"
+#include <array>
 #include <memory>
+#include <span>
 #include <tuple>
+#include <vector>
 
 /**
  * @brief Class implementing a three-tube Concentric Tube Robot (CTR).
@@ -114,7 +117,7 @@ public:
 	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
-	bool PowellDogLeg(blaze::StaticVector<double, 5UL> &initGuess);
+	[[nodiscard]] bool PowellDogLeg(blaze::StaticVector<double, 5UL> &initGuess);
 
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Levenberg-Marquardt Method to find the zero of the residue function.
@@ -122,7 +125,7 @@ public:
 	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
-	bool Levenberg_Marquardt(blaze::StaticVector<double, 5UL> &initGuess);
+	[[nodiscard]] bool Levenberg_Marquardt(blaze::StaticVector<double, 5UL> &initGuess);
 
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Broyden's Method (Jacobian inverse is estimated) to find the zero of the residue function.
@@ -130,7 +133,7 @@ public:
 	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
-	bool Broyden(blaze::StaticVector<double, 5UL> &initGuess);
+	[[nodiscard]] bool Broyden(blaze::StaticVector<double, 5UL> &initGuess);
 
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Broyden's Method (Jacobian inverse is estimated) to find the zero of the residue function.
@@ -138,7 +141,7 @@ public:
 	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
-	bool Broyden_II(blaze::StaticVector<double, 5UL> &initGuess);
+	[[nodiscard]] bool Broyden_II(blaze::StaticVector<double, 5UL> &initGuess);
 
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Newton-Raphson's Method to find the zero of the residue function.
@@ -146,7 +149,7 @@ public:
 	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
-	bool Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess);
+	[[nodiscard]] bool Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess);
 
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the modified Newton-Raphson's Method to find the zero of the residue function.
@@ -154,7 +157,7 @@ public:
 	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
-	bool Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess);
+	[[nodiscard]] bool Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess);
 
 	/**
 	 * @brief Actuates the CTR robot to a configuration determined by the actuation inputs and the associated boundary conditions dictated by the initial guess for the BVP
@@ -163,7 +166,7 @@ public:
 	 * @param q_input is a 6-dimensional vector of the actuation units The first three entries are the linear joints, the last three are the revolute ones.
 	 * @return a boolean flag. True: the associated BVP has been solved successfully | False: otherwise
 	 */
-	bool actuate_CTR(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 6UL> &q_input);
+	[[nodiscard]] bool actuate_CTR(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 6UL> &q_input);
 
 	/**
 	 * @brief Implements the differential inverse kinematics based on resolved rates motion of the actuators
@@ -173,56 +176,59 @@ public:
 	 * @param Tol is a scalar indicating the tolerance with which the position control problem should be solved.
 	 * @return a boolean flag. True: the associated IK has been solved successfully within the prescribed tolerance | False: otherwise
 	 */
-	bool posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, const double Tol);
+	[[nodiscard]] bool posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, double posTol);
 
 	/**
 	 * @brief Returns an std container with smart pointers to the Tube objects comprising the CTR
 	 *
 	 * @return smart pointers to the tubes comprising the CTR assembly
 	 */
-	std::array<std::shared_ptr<Tube>, 3UL> getTubes();
+	[[nodiscard]] std::array<std::shared_ptr<Tube>, 3UL> getTubes() const;
 
 	/**
 	 * @brief Returns the current actuation values of the linear joints of the CTR
 	 *
 	 * @return a static 3-dimensional Blaze vector with the actuation values for the linear joints [beta_1, beta_2, beta_3]
 	 */
-	blaze::StaticVector<double, 3UL> getBeta();
+	[[nodiscard]] blaze::StaticVector<double, 3UL> getBeta() const;
 
 	/**
 	 * @brief Returns the current actuation values of all the linear and revolute joints of the CTR
 	 *
 	 * @return a static Blaze vector with the actuation values for all the joints [beta_1, beta_2, beta_3, alpha_1, alpha_2, alpha_3]
 	 */
-	blaze::StaticVector<double, 6UL> getConfiguration();
+	[[nodiscard]] blaze::StaticVector<double, 6UL> getConfiguration() const;
 
 	/**
 	 * @brief Returns the current end-effector (distal-end) position of the CTR in meters
 	 *
 	 * @return a static 3-dimensional Blaze vector with the position of the distal-end of the CTR
 	 */
-	blaze::StaticVector<double, 3UL> getTipPos();
+	[[nodiscard]] blaze::StaticVector<double, 3UL> getTipPos() const;
 
 	/**
 	 * @brief Returns the arc-lenghts of each tube's distal end in meters
 	 *
 	 * @return a static 3-dimensional Blaze vector with the arc-length distal-end positions of each tube in the CTR assembly
 	 */
-	blaze::StaticVector<double, 3UL> getDistalEnds();
+	[[nodiscard]] blaze::StaticVector<double, 3UL> getDistalEnds() const;
 
 	/**
 	 * @brief Implements a getter moethod for acquiring the 3-dimensional shape of each tube in the CTR assembly
 	 *
 	 * @return a set of three 3xN Blaze matrices with the shape of each tube in the CTR assembly. The first, second, and third rows of each matrix correspond to the x,y,z coordinates
 	 */
-	std::tuple<blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>> getTubeShapes();
+	[[nodiscard]] std::tuple<blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>> getTubeShapes() const;
 
 	/**
 	 * @brief Returns a tuple with three std vectors containing the shape of the innermost tube in the CTR assembly
 	 *
 	 * @return a tuple with the set of three std::vectors with the shape of the innermost tube in the CTR assembly. The first, second, and third entries in the tuple correspond to the x,y,z coordinates of the tube centerline
 	 */
-	std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> getShape();
+	[[nodiscard]] std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> getShape() const;
+
+	[[nodiscard]] std::span<const state_type> states() const noexcept;
+	[[nodiscard]] std::span<const double> arcLengthSamples() const noexcept;
 
 	/**
 	 * @brief Implements a setter method for setting the actuation joint values. It does not actuate the CTR (does not solve the FK of the CTR)

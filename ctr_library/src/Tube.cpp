@@ -1,7 +1,6 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 #include "Tube.hpp"
-#include <math.h> // pow()
 
 // default class constructor
 Tube::Tube()
@@ -21,15 +20,19 @@ Tube::Tube()
 // overloaded class constructor
 Tube::Tube(double OD, double ID, double E, double G, double ls, double lc, const blaze::StaticVector<double, 3UL> &u_ast) : m_OD(OD), m_ID(ID), m_E(E), m_G(G), m_ls(ls), m_lc(lc), m_u_ast(u_ast)
 {
-	m_I = pi_64 * (pow(OD, 4) - pow(ID, 4));
-	m_J = pi_32 * (pow(OD, 4) - pow(ID, 4));
+	const double od2 = OD * OD;
+	const double id2 = ID * ID;
+	const double areaDiff = od2 * od2 - id2 * id2;
+
+	m_I = pi_64 * areaDiff;
+	m_J = pi_32 * areaDiff;
 	m_K(0UL, 0UL) = m_K(1UL, 1UL) = m_E * m_I;
 	m_K(2UL, 2UL) = m_G * m_J;
 }
 
 // copy constructor
 Tube::Tube(const Tube &rhs) : m_OD(rhs.m_OD), m_ID(rhs.m_ID), m_E(rhs.m_E), m_I(rhs.m_I), m_G(rhs.m_G),
-							  m_J(rhs.m_J), m_K(rhs.m_K), m_ls(rhs.m_ls), m_lc(rhs.m_lc), m_u_ast(rhs.m_u_ast){}
+							  m_J(rhs.m_J), m_K(rhs.m_K), m_ls(rhs.m_ls), m_lc(rhs.m_lc), m_u_ast(rhs.m_u_ast) {}
 
 // move constructor
 Tube::Tube(Tube &&rhs) noexcept
@@ -93,7 +96,7 @@ Tube &Tube::operator=(Tube &&rhs) noexcept
 }
 
 // // get method for retrieving the tube parameters
-std::tuple<double, double, double, double, double, blaze::StaticVector<double, 3UL>> Tube::getTubeParameters()
+std::tuple<double, double, double, double, double, blaze::StaticVector<double, 3UL>> Tube::getTubeParameters() const
 {
 	return std::make_tuple(this->m_OD, this->m_ID, this->m_E, this->m_ls, this->m_lc, this->m_u_ast);
 }
@@ -113,19 +116,19 @@ void Tube::setShearModulus(double G)
 }
 
 // get method for retrieving the tube overall length
-double Tube::getTubeLength()
+double Tube::getTubeLength() const noexcept
 {
 	return this->m_ls + this->m_lc;
 }
 
 // get method for retrieving the tube precurvature vector
-blaze::StaticVector<double, 3UL> Tube::get_u_ast()
+blaze::StaticVector<double, 3UL> Tube::get_u_ast() const noexcept
 {
 	return this->m_u_ast;
 }
 
 // get method for retrieving the precurvature along x or y directions
-double Tube::get_u_ast(const size_t id)
+double Tube::get_u_ast(size_t id) const noexcept
 {
 	switch (id)
 	{
@@ -163,13 +166,13 @@ void Tube::set_u_ast(const size_t id, const double u)
 }
 
 // get method for retrieving the length of the straight section
-double Tube::getStraightLen()
+double Tube::getStraightLen() const noexcept
 {
 	return this->m_ls;
 }
 
 // get method for retrieving the length of the tube curved section
-double Tube::getCurvLen()
+double Tube::getCurvLen() const noexcept
 {
 	return this->m_lc;
 }
@@ -187,13 +190,13 @@ void Tube::setCurvLen(double lc)
 }
 
 // get method for retrieving the stiffness matrix
-blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> Tube::getK_Matrix()
+blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> Tube::getK_Matrix() const noexcept
 {
 	return this->m_K;
 }
 
 // get method for retrieving the ith entry of the main diagonal
-double Tube::getK(int i)
+double Tube::getK(int i) const noexcept
 {
 	switch (i)
 	{

@@ -3,6 +3,29 @@
 
 #include "CTR.hpp"
 
+#include <algorithm>
+#include <cmath>
+
+namespace
+{
+	constexpr double kMaxInitialTwist = 50.0;
+
+	void sanitizeInitialGuess(blaze::StaticVector<double, 5UL> &initial_guesses) noexcept
+	{
+		for (size_t idx = 2UL; idx < 5UL; ++idx)
+		{
+			auto value = initial_guesses[idx];
+			if (!std::isfinite(value))
+			{
+				value = 0.00;
+			}
+			initial_guesses[idx] = std::clamp(value, -kMaxInitialTwist, kMaxInitialTwist);
+		}
+		initial_guesses[0UL] = 0.00;
+		initial_guesses[1UL] = 0.00;
+	}
+} // namespace
+
 // overloaded class constructor
 CTR::CTR(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, blaze::StaticVector<double, 6UL> &q, double Tol, mathOp::rootFindingMethod method) : m_accuracy(Tol), m_method(method), m_Tubes(Tb), m_beta(blaze::subvector<0UL, 3UL>(q)), m_q(q)
 {
@@ -133,13 +156,20 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	this->reset(initGuess); // resets CTR parameters and variables for a new iteration of the ode-solver
 
 	// retrieving the bending & torsional stiffness and precurvatures in all segments of the CTR in the current
-	auto [EI, GJ, U_x, U_y, S] = this->m_segment->returnParameters();
+	const auto [EI, GJ, U_x, U_y, S] = this->m_segment->returnParameters();
 
 	// ##################################################### NUMERICAL METHODS FOR ODE INTEGRATION #####################################################
 
 	// ********************************  8-th ORDER ADAPTIVE ADAMS-BASHFORTH-MOULTON STEPPER ********************************
-	boost::numeric::odeint::adaptive_adams_bashforth_moulton<8UL, state_type, double, state_type, double,
-															 boost::numeric::odeint::vector_space_algebra, boost::numeric::odeint::default_operations, boost::numeric::odeint::initially_resizer>
+	// Instantiate the stepper with the appropriate algebra type
+	boost::numeric::odeint::adaptive_adams_bashforth_moulton<8UL,
+															 State,
+															 double,
+															 State,
+															 double,
+															 boost::numeric::odeint::custom_algebra,
+															 boost::numeric::odeint::default_operations,
+															 boost::numeric::odeint::initially_resizer>
 		abm8_stepper;
 
 	// ********************************  4-th ORDER CLASSIC RUNGE-KUTTA STEPPER ********************************
@@ -164,8 +194,15 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	// #################################################################################################################################################
 
 	// start and end points, in terms of arc-length s, of each CTR segment and initial step-size for integration (ds)
-	double s_start, s_end, ds;
-	constexpr double stepResolution = 1.00 / 25.00;
+	double s_start, s_end;
+	// initial step size
+	double ds = 1.00E-3;
+
+	// Tolerance parameters for the adaptive stepper
+	constexpr double abs_tol = 1.00E-8;
+	constexpr double rel_tol = 1.00E-8;
+
+	auto controlled_stepper = boost::numeric::odeint::make_controlled(abs_tol, rel_tol, abm8_stepper);
 
 	// instantiating the vector of initial conditions for solving the state equations (15 x 1)
 	state_type y_0;
@@ -198,20 +235,26 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	y_0[14UL] = this->m_h_0[3UL];
 
 	// iterating through the tube segments comprising the CTR
-	size_t len_seg = S.size() - 1UL;
+	const size_t len_seg = S.size() - 1UL;
 	for (size_t seg = 0; seg < len_seg; ++seg)
 	{
 		// specifying the interval of integration (in terms of tube segment arc-lengths)
 		s_start = S[seg];
 		s_end = S[seg + 1UL];
-		ds = (s_end - s_start) * stepResolution; // 25 points per segment
 
 		// passing the tube parameters in the segment to the state equation method
 		this->m_stateEquations->setEquationParameters(blaze::column(U_x, seg), blaze::column(U_y, seg), blaze::column(EI, seg), blaze::column(GJ, seg), this->m_wf);
 
 		// ##################################################### NUMERICAL INTEGRATION #####################################################
 		// Employs the selected stepper (Numerical method) and integrates the system of ODEs along the segment considered
-		boost::numeric::odeint::integrate_adaptive(abm8_stepper, *this->m_stateEquations, y_0, s_start, s_end, ds, *this->m_stateObserver);
+		boost::numeric::odeint::integrate_adaptive(
+			abm8_stepper,			 // controlled stepper with error tolerances
+			*this->m_stateEquations, // ODE system
+			y_0,					 // initial condition
+			s_start,				 // start of CTR segment (arc-length)
+			s_end,					 // end of CTR segment (arc-length)
+			ds,						 // initial step size
+			*this->m_stateObserver); // observer for saving the states
 	}
 
 	//
@@ -227,7 +270,7 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	// grabbing the orientation at the distal end
 	mathOp::getSO3(blaze::subvector<11UL, 4UL>(y_0), R1);
 
-	blaze::StaticVector<double, 3UL> distalMoment = blaze::trans(R1) * m_wm;
+	const blaze::StaticVector<double, 3UL> distalMoment = blaze::trans(R1) * m_wm;
 
 	// Residue vector due to infringment of the distal boundary conditions || Residue = [ mb_x - Wm_x, mb_y - Wm_y, u1_z, u2_z, u3_z ]
 	blaze::StaticVector<double, 5UL> Residue = {y_0[0UL] - distalMoment[0UL],
@@ -328,15 +371,7 @@ bool CTR::PowellDogLeg(blaze::StaticVector<double, 5UL> &initGuess)
 	blaze::StaticMatrix<double, 5UL, 5UL> J;
 
 	// zeroes |mb_x(0)|, |mb_y(0)|and limits the values of |u1_z(0)|, |u2_z(0)| and |u3_z(0)| to avoid numerical instability and lack of convergence
-	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
-	{
-		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = 0.00;
-		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
-	};
-
-	readjustInitialGuesses(initGuess);
+	sanitizeInitialGuess(initGuess);
 
 	// initializing parameters
 	delta = 1.00;
@@ -431,15 +466,7 @@ bool CTR::Levenberg_Marquardt(blaze::StaticVector<double, 5UL> &initGuess)
 	bool found;
 
 	// zeroes |mb_x(0)|, |mb_y(0)|and limits the values of |u1_z(0)|, |u2_z(0)| and |u3_z(0)| to avoid numerical instability and lack of convergence
-	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
-	{
-		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = 0.00;
-		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
-	};
-
-	readjustInitialGuesses(initGuess);
+	sanitizeInitialGuess(initGuess);
 
 	// computing the residue and residue Jacobian associated to initGuess
 	f = this->ODESolver(initGuess);
@@ -492,15 +519,7 @@ bool CTR::Broyden(blaze::StaticVector<double, 5UL> &initGuess)
 	bool found;
 
 	// zeroes |mb_x(0)|, |mb_y(0)|and limits the values of |u1_z(0)|, |u2_z(0)| and |u3_z(0)| to avoid numerical instability and lack of convergence
-	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
-	{
-		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
-		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
-	};
-
-	readjustInitialGuesses(initGuess);
+	sanitizeInitialGuess(initGuess);
 
 	// initial Hessian matrix --> computed via finite differences
 	blaze::StaticMatrix<double, 5UL, 5UL, blaze::columnMajor> JacInv, JacInvNew;
@@ -541,7 +560,7 @@ bool CTR::Broyden(blaze::StaticVector<double, 5UL> &initGuess)
 		while (blaze::isnan(F))
 		{
 			X *= 0.75;
-			readjustInitialGuesses(X);
+			sanitizeInitialGuess(X);
 
 			F = this->ODESolver(X);
 			JacInv = JacInvNew = mathOp::pInv(this->jac_BVP(X, F));
@@ -569,15 +588,7 @@ bool CTR::Broyden_II(blaze::StaticVector<double, 5UL> &initGuess)
 	bool found;
 
 	// zeroes |mb_x(0)|, |mb_y(0)|and limits the values of |u1_z(0)|, |u2_z(0)| and |u3_z(0)| to avoid numerical instability and lack of convergence
-	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
-	{
-		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = 0.00;
-		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
-	};
-
-	readjustInitialGuesses(initGuess);
+	sanitizeInitialGuess(initGuess);
 
 	// initial Hessian matrix --> computed via finite differences
 	blaze::StaticMatrix<double, 5UL, 5UL, blaze::columnMajor> Jac, JacNew;
@@ -618,7 +629,7 @@ bool CTR::Broyden_II(blaze::StaticVector<double, 5UL> &initGuess)
 		while (blaze::isnan(F))
 		{
 			X *= 0.75;
-			readjustInitialGuesses(X);
+			sanitizeInitialGuess(X);
 
 			F = this->ODESolver(X);
 			JacNew = this->jac_BVP(X, F);
@@ -648,15 +659,7 @@ bool CTR::Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 	blaze::StaticVector<double, 5UL> Residue, Residue_new, d_Residue, int_Residue, dGuess; // staticVectors are automatically initialized to 0
 
 	// zeroes |mb_x(0)|, |mb_y(0)|and limits the values of |u1_z(0)|, |u2_z(0)| and |u3_z(0)| to avoid numerical instability and lack of convergence
-	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
-	{
-		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = u3_z(0) = 0.00;
-		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
-	};
-
-	readjustInitialGuesses(initGuess);
+	sanitizeInitialGuess(initGuess);
 
 	// Residue of the unperturbed initial guess for the CTR
 	Residue = this->ODESolver(initGuess);
@@ -683,7 +686,7 @@ bool CTR::Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 		// updating the initial guess(weighted negative gradient of the cost function)
 		initGuess -= dGuess;
 
-		readjustInitialGuesses(initGuess);
+		sanitizeInitialGuess(initGuess);
 
 		// computing the new cost associated to the newly readjusted initial guess
 		Residue_new = this->ODESolver(initGuess);
@@ -710,15 +713,7 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 	*/
 
 	// zeroes |mb_x(0)|, |mb_y(0)|and limits the values of |u1_z(0)|, |u2_z(0)| and |u3_z(0)| to avoid numerical instability and lack of convergence
-	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses) -> void
-	{
-		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = 0.00;
-		initial_guesses[0UL] = initial_guesses[1UL] = 0.00;
-	};
-
-	readjustInitialGuesses(initGuess);
+	sanitizeInitialGuess(initGuess);
 
 	bool found;
 	// computes the residue associated to the initial guess
@@ -745,7 +740,7 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 		while (!blaze::isfinite(D))
 		{
 			initGuess *= 0.75;
-			readjustInitialGuesses(initGuess);
+			sanitizeInitialGuess(initGuess);
 			// then recomputes the residue
 			f = this->ODESolver(initGuess);
 			// computing the residue Jacobian
@@ -781,7 +776,7 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 				if (j > 10UL)
 				{
 					initGuess *= 0.75;
-					readjustInitialGuesses(initGuess);
+					sanitizeInitialGuess(initGuess);
 					setupMethod();
 					j = 0UL;
 				}
@@ -814,13 +809,13 @@ bool CTR::Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess)
 
 	if (!found)
 	{
-		readjustInitialGuesses(initGuess);
+		sanitizeInitialGuess(initGuess);
 		initGuess *= 0.75;
 		found = this->PowellDogLeg(initGuess);
 
 		if (!found)
 		{
-			readjustInitialGuesses(initGuess);
+			sanitizeInitialGuess(initGuess);
 			initGuess *= 0.75;
 			found = this->Levenberg_Marquardt(initGuess);
 		}
@@ -868,24 +863,16 @@ bool CTR::actuate_CTR(blaze::StaticVector<double, 5UL> &initGuess, const blaze::
 }
 
 // function that implements the position control ==> returns timeout [bool]
-bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, const double posTol)
+bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, double posTol)
 {
 	double minError = 1.00E3;										 // minimum distance to target
 	bool status;													 // status = TRUE (FALSE) indicates convergence (lack thereof)
 	blaze::StaticMatrix<double, 3UL, 6UL, blaze::columnMajor> J;	 // Jacobian matrix
 	blaze::StaticMatrix<double, 6UL, 3UL, blaze::columnMajor> J_inv; // Jacobian pseudoinverse
-	blaze::IdentityMatrix<double, blaze::rowMajor> I(6UL);			 // 6 x 6 Identity matrix
+	constexpr blaze::IdentityMatrix<double, blaze::rowMajor> I(6UL); // 6 x 6 Identity matrix
 
 	// zeroes |mb_x(0)|, |mb_y(0)| and |u3_z(0)| and limits the values of |u1_z(0)| and |u2_z(0)| to avoid numerical instability and lack of convergence
-	auto readjustInitialGuesses = [](blaze::StaticVector<double, 5UL> &initial_guesses)
-	{
-		blaze::subvector<2UL, 3UL>(initial_guesses) = blaze::map(blaze::subvector<2UL, 3UL>(initial_guesses), [](double d)
-																 { return (!blaze::isfinite(d)) ? 0.00 : blaze::sign(d) * std::min(blaze::abs(d), 50.00); });
-		// mb_x(0) = mb_y(0) = 0.00;
-		initial_guesses[0UL] = initial_guesses[1UL];
-	};
-
-	readjustInitialGuesses(initGuess);
+	sanitizeInitialGuess(initGuess);
 
 	// proportional, derivative, and integral gains for position control
 	blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor>> Kp, Kd, Ki;
@@ -908,6 +895,7 @@ bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::Stat
 	blaze::StaticVector<double, 3UL> tipError = target - x_CTR;
 	blaze::StaticVector<double, 3UL> last_tipError = tipError;
 	blaze::StaticVector<double, 3UL> d_tipError, int_tipError;
+	static constexpr double integralClamp = 5.00; // meters (tip space) worth of integrator action per axis
 
 	// Euclidean distance to target
 	double dist2Tgt = blaze::norm(tipError);
@@ -926,7 +914,7 @@ bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::Stat
 	blaze::StaticVector<double, 3UL> f1 = blaze::subvector<0UL, 3UL>(f);
 
 	// clearance between linear actuators
-	constexpr double Clr = 5.00E-3, deltaBar = 0.00;
+	constexpr double Clr = 5.00E-3;
 
 	// lengths of straight sections of the CTR tubes
 	const blaze::StaticVector<double, 3UL> L = {
@@ -947,7 +935,7 @@ bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::Stat
 	// maximum admissible number of iterations in the position control loop
 	constexpr size_t maxIter = 500UL;
 	// parameters for local optimization (joint limits avoidance)
-	constexpr double ke = 2.00;
+	constexpr double ke = 4.00;
 
 	// position control loop
 	while ((dist2Tgt > posTol) && (N_itr < maxIter))
@@ -961,7 +949,7 @@ bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::Stat
 		while (!blaze::isfinite(J))
 		{
 			initGuess *= 0.750;
-			readjustInitialGuesses(initGuess);
+			sanitizeInitialGuess(initGuess);
 			this->ODESolver(initGuess);
 			x_CTR = this->getTipPos();
 			J = this->jacobian(initGuess, x_CTR);
@@ -971,20 +959,30 @@ bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::Stat
 		J_inv = mathOp::pInv(J);
 
 		// Nullspace control (collision and actuation limits)
-		betaMin[0UL] = std::max({-ls[0UL] + deltaBar, L[1UL] + this->m_beta[1UL] - L[0UL], L[2UL] + this->m_beta[2UL] - L[0UL]});
-		betaMin[1UL] = std::max({-ls[1UL] + deltaBar, this->m_beta[0UL] + Clr, L[2UL] + this->m_beta[2UL] - L[1UL]});
-		betaMin[2UL] = std::max(-ls[2UL] + deltaBar, this->m_beta[1UL] + Clr);
+		betaMin[0UL] = std::max({-ls[0UL], L[1UL] + this->m_beta[1UL] - L[0UL], L[2UL] + this->m_beta[2UL] - L[0UL]});
+		betaMin[1UL] = std::max({-ls[1UL], this->m_beta[0UL] + Clr, L[2UL] + this->m_beta[2UL] - L[1UL]});
+		betaMin[2UL] = std::max(-ls[2UL], this->m_beta[1UL] + Clr);
 
 		betaMax[0UL] = m_beta[1UL] - Clr;
 		betaMax[1UL] = std::min(this->m_beta[2UL] - Clr, L[0UL] + this->m_beta[0UL] - L[1UL]);
-		betaMax[2UL] = std::min({-deltaBar, L[1UL] + this->m_beta[1UL] - L[2UL], L[0UL] + this->m_beta[0UL] - L[2UL]});
+		betaMax[2UL] = std::min(L[1UL] + this->m_beta[1UL] - L[2UL], L[0UL] + this->m_beta[0UL] - L[2UL]);
 
 		// penalty function for local optimization (actuator collision avoidance)
-		f1 = blaze::pow(blaze::abs((betaMax + betaMin - 2.00 * this->m_beta) / (betaMax - betaMin + 1.00E-10)), ke) * blaze::sign(this->m_beta - (betaMax + betaMin) * 0.50);
+        constexpr double spanEps = 1.00E-6;
+        blaze::StaticVector<double, 3UL> span = betaMax - betaMin;
+        for (size_t i = 0; i < 3UL; ++i)
+        {
+            const double magnitude = std::max(std::abs(span[i]), spanEps);
+            span[i] = std::copysign(magnitude, span[i]);
+        }
+        const auto normalizedOffset = (betaMax + betaMin - 2.00 * this->m_beta) / span;
+        f1 = blaze::pow(blaze::abs(normalizedOffset), ke) * blaze::sign(this->m_beta - (betaMax + betaMin) * 0.50);
 
-		// resolved rates -- Nullspacec local optimization (joint limit avoidance)
-		dqdt = J_inv * (Kp * tipError + Kd * d_tipError + Ki * int_tipError) + (I - blaze::trans(J_inv * J)) * (-f);
-
+        // resolved rates -- Nullspacec local optimization (joint limit avoidance)
+        const auto nullspaceProjector = I - (J_inv * J);
+        const auto taskSpaceCommand = Kp * tipError + Kd * d_tipError + Ki * int_tipError;
+        dqdt = J_inv * taskSpaceCommand - nullspaceProjector * f;
+	
 		auto rescale_dqdt = [&]() -> void { // rescaling linear joint variables for limit avoidance
 			for (size_t i = 0UL; i < 3UL; ++i)
 			{
@@ -1018,7 +1016,7 @@ bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::Stat
 		if (!status)
 		{
 			initGuess *= 0.75;
-			readjustInitialGuesses(initGuess);
+			sanitizeInitialGuess(initGuess);
 			status = this->actuate_CTR(initGuess, q);
 
 			if (!status)
@@ -1035,8 +1033,10 @@ bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::Stat
 
 		// current position error
 		tipError = target - x_CTR;
-		// integrating the position error
-		int_tipError += tipError;
+		// integrating the position error with simple anti-windup clamp
+        int_tipError += tipError;
+        int_tipError = blaze::map(int_tipError, [](double value)
+                                  { return std::clamp(value, -integralClamp, integralClamp); });
 		// derivative of the position error
 		d_tipError = tipError - last_tipError;
 		// updating the last tip error variable
@@ -1070,25 +1070,25 @@ bool CTR::posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::Stat
 }
 
 // function that returns the Vector of tubes comprising the CTR
-std::array<std::shared_ptr<Tube>, 3UL> CTR::getTubes()
+std::array<std::shared_ptr<Tube>, 3UL> CTR::getTubes() const
 {
 	return this->m_Tubes;
 }
 
 // function that returns the current linear joint values of the CTR
-blaze::StaticVector<double, 3UL> CTR::getBeta()
+blaze::StaticVector<double, 3UL> CTR::getBeta() const
 {
 	return this->m_beta;
 }
 
 // function that returns the current joint values of the CTR
-blaze::StaticVector<double, 6UL> CTR::getConfiguration()
+blaze::StaticVector<double, 6UL> CTR::getConfiguration() const
 {
 	return this->m_q;
 }
 
 // function that returns the position of the CTR tip
-blaze::StaticVector<double, 3UL> CTR::getTipPos()
+blaze::StaticVector<double, 3UL> CTR::getTipPos() const
 {
 	blaze::StaticVector<double, 3UL> pos;
 	if (!this->m_y.empty())
@@ -1098,19 +1098,19 @@ blaze::StaticVector<double, 3UL> CTR::getTipPos()
 }
 
 // function that returns the arc-lenghts at each tube's distal end
-blaze::StaticVector<double, 3UL> CTR::getDistalEnds()
+blaze::StaticVector<double, 3UL> CTR::getDistalEnds() const
 {
 	return this->m_segment->getDistalEnds();
 }
 
 // function that returns the individual tube shapes
-std::tuple<blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>> CTR::getTubeShapes()
+std::tuple<blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>> CTR::getTubeShapes() const
 {
 	blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor> Tb_1(3UL, this->m_y.size());
 	blaze::StaticVector<double, 3UL> v;
 
 	// arc-lengths at the distal ends of each tube
-	blaze::StaticVector<double, 3UL> distal_idx, distalEnds(this->m_segment->getDistalEnds());
+	blaze::StaticVector<double, 3UL> distalEnds(this->m_segment->getDistalEnds());
 
 	for (size_t col = 0UL; col < Tb_1.columns(); ++col)
 	{
@@ -1122,7 +1122,7 @@ std::tuple<blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::
 	auto tubeEndIndex = [&](size_t tube_index) -> size_t
 	{
 		// find the index in the arc-length vector at which each tube ends
-		std::vector<double>::iterator it = std::lower_bound(this->m_s.begin(), this->m_s.end(), distalEnds[tube_index] - 1.00E-7); // finds where tube ends (0.0001mm tolerance)
+		auto it = std::lower_bound(this->m_s.begin(), this->m_s.end(), distalEnds[tube_index] - 1.00E-7); // finds where tube ends (0.0001mm tolerance)
 
 		return std::distance(this->m_s.begin(), it);
 	};
@@ -1143,7 +1143,7 @@ std::tuple<blaze::HybridMatrix<double, 3UL, 1000UL, blaze::columnMajor>, blaze::
 }
 
 // function that returns a vector with the CTR shape
-std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> CTR::getShape()
+std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> CTR::getShape() const
 {
 	std::vector<double> r_x, r_y, r_z;
 	r_x.reserve(this->m_y.size());
@@ -1152,7 +1152,7 @@ std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> CTR::g
 
 	if (this->m_y.size() > 0UL)
 	{
-		for (auto &el : this->m_y)
+		for (const auto &el : this->m_y)
 		{
 			r_x.emplace_back(el[8UL]);
 			r_y.emplace_back(el[9UL]);
@@ -1161,6 +1161,16 @@ std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> CTR::g
 	}
 
 	return std::make_tuple(std::move(r_x), std::move(r_y), std::move(r_z));
+}
+
+std::span<const state_type> CTR::states() const noexcept
+{
+	return {this->m_y.data(), this->m_y.size()};
+}
+
+std::span<const double> CTR::arcLengthSamples() const noexcept
+{
+	return {this->m_s.data(), this->m_s.size()};
 }
 
 // setter method for setting the actuation joint values (without actuating the CTR) <--> used for computing the Jacobian

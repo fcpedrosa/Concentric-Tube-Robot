@@ -2,6 +2,8 @@
 
 // #define _USE_MATH_DEFINES
 #include <cmath>
+#include <numbers>
+#include <tuple>
 #include <vector>
 #include <iostream>
 #include <blaze/Math.h>
@@ -15,12 +17,12 @@ private:
 	/**
 	 * @brief Pi constant divided by 64.
 	 */
-	static constexpr double pi_64 = M_PI / 64.00;
+	static constexpr double pi_64 = std::numbers::pi / 64.0;
 
 	/**
 	 * @brief Pi constant divided by 32.
 	 */
-	static constexpr double pi_32 = M_PI / 32.00;
+	static constexpr double pi_32 = std::numbers::pi / 32.0;
 
 	/**
 	 * @brief Outer diameter of the tube.
@@ -131,7 +133,7 @@ public:
 	 *
 	 * @return A tuple containing the parameters [OD, ID, E, G, ls, lc, ||u_ast||] .
 	 */
-	std::tuple<double, double, double, double, double, blaze::StaticVector<double, 3UL>> getTubeParameters();
+	[[nodiscard]] std::tuple<double, double, double, double, double, blaze::StaticVector<double, 3UL>> getTubeParameters() const;
 
 	/**
 	 * @brief Implements a setter method for setting the Young's modulus of the Tube object
@@ -152,21 +154,21 @@ public:
 	 *
 	 * @return The overall tube length in meters (straight + curved sections)
 	 */
-	double getTubeLength();
+	[[nodiscard]] double getTubeLength() const noexcept;
 
 	/**
 	 * @brief Implements a getter method for retrieving the pre-curvature of the Tube object
 	 *
 	 * @return A 3-dimensional static Blaze vector with the pre-curvature of the tube
 	 */
-	blaze::StaticVector<double, 3UL> get_u_ast();
+	[[nodiscard]] blaze::StaticVector<double, 3UL> get_u_ast() const noexcept;
 
 	/**
 	 * @brief Implements a getter method for retrieving the pre-curvature of the Tube object along a specific direction
 	 *
 	 * @return A scalar with the pre-curvature of the tube along the 'x' or 'y' directions
 	 */
-	double get_u_ast(const size_t id);
+	[[nodiscard]] double get_u_ast(size_t id) const noexcept;
 
 	/**
 	 * @brief Implements a setter method for updating the pre-curvature of the Tube object
@@ -188,14 +190,14 @@ public:
 	 *
 	 * @return A scalar with the length of the straight segment of the tube in meters
 	 */
-	double getStraightLen();
+	[[nodiscard]] double getStraightLen() const noexcept;
 
 	/**
 	 * @brief Implements a getter method for retrieving the length of the curved segment of the Tube object
 	 *
 	 * @return A scalar with the length of the curved segment of the tube in meters
 	 */
-	double getCurvLen();
+	[[nodiscard]] double getCurvLen() const noexcept;
 
 	/**
 	 * @brief Implements a setter method for updating the length of the straight tranmission of the Tube object
@@ -216,14 +218,14 @@ public:
 	 *
 	 * @return A 3x3 static diagonal Blaze matrix witht the bending stiffness of the Tube object
 	 */
-	blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> getK_Matrix();
+	[[nodiscard]] blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> getK_Matrix() const noexcept;
 
 	/**
 	 * @brief Implements a getter method for retrieving the bending/torsional stiffness of the Tube along a specific direction
 	 *
 	 * @param i size_t index of the direction: 0: 'x', 1: 'y', 2: 'z'
 	 */
-	double getK(int i);
+	[[nodiscard]] double getK(int i) const noexcept;
 
 	/**
 	 * @brief Implements a setter method for updating the bending & torional stiffness of the Tube

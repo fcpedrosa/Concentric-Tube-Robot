@@ -1,11 +1,10 @@
-add_executable(${PROJECT_NAME} Main.cpp)
-target_link_libraries(${PROJECT_NAME} PUBLIC CTRlib pthread tbb)
+add_executable(ctr_general_use Main.cpp)
+set_target_properties(ctr_general_use PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
-# Ensure all necessary include directories are available for the executable
-target_include_directories(${PROJECT_NAME} PUBLIC
-    ${Boost_INCLUDE_DIRS}
-    ${BLAS_INCLUDE_DIRS}
-    ${LAPACK_INCLUDE_DIRS}
-    ${BLAZE_INCLUDE_DIRS}
-    ${TBB_INCLUDE_DIRS}
+target_link_libraries(ctr_general_use
+    PRIVATE
+    CTRlib
+    ctr_project_options
+    ctr_sanitizers
+    Threads::Threads
 )
