@@ -21,6 +21,7 @@ This repository contains a C++ static library for implementing the forward and i
 - [Installation](#installation)
 - [Documentation](#documentation)
 - [Usage](#usage)
+- [GitHub Workflows](#github-workflows)
 - [CMake Options](#cmake-options)
 - [Folder Layout](#folder-layout)
 - [Citing](#citing)
@@ -92,6 +93,17 @@ Open the output at `build/docs/html/index.html`.
 ## Usage
 
 For detailed documentation on the library's API and usage, please refer to the [Documentation](https://fcpedrosa.github.io/Concentric-Tube-Robot/html/index.html) section.
+
+## GitHub Workflows
+
+This repository includes a GitHub Actions workflow that builds the library on every push and pull request. The build badge at the top of this README reflects the latest workflow status on the main branch.
+
+To run the workflow manually:
+1. Go to the Actions tab in your GitHub repository.
+2. Select the build workflow.
+3. Click Run workflow and choose the branch.
+
+The workflow verifies that the project configures and builds successfully. If you want downloadable binaries, add an upload step to the workflow (for example, upload the build outputs from the build directory or the Releases folder) and attach them to a GitHub Release.
 
 ## CMake Options
 
