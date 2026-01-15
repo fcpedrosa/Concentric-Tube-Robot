@@ -1,0 +1,31 @@
+name: build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build git \
+            libboost-all-dev libopenblas-dev liblapack-dev libtbb-dev
+
+      - name: Install Blaze
+        run: |
+          git clone --depth 1 https://bitbucket.org/blaze-lib/blaze.git /tmp/blaze
+          cmake -S /tmp/blaze -B /tmp/blaze/build -DCMAKE_INSTALL_PREFIX=/usr/local
+          cmake --build /tmp/blaze/build --target install
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build

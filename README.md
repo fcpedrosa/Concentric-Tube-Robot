@@ -5,7 +5,7 @@
 ![CTR Robot](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/images/CTR_Assembly.png)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/LICENSE)
-[![Build Status](https://travis-ci.com/yourusername/repo-name.svg?branch=main)](https://github.com/fcpedrosa/Concentric-Tube-Robot)
+[![Build](https://github.com/fcpedrosa/Concentric-Tube-Robot/actions/workflows/ci.yml/badge.svg)](https://github.com/fcpedrosa/Concentric-Tube-Robot/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-doxygen-brightgreen.svg)](https://fcpedrosa.github.io/Concentric-Tube-Robot/html/index.html)
 
 </div>
@@ -29,11 +29,11 @@ This repository contains a C++ static library for implementing the forward and i
 - [License](#license)
 - [Contact](#contact)
 
-## Introduction {#introduction}
+## Introduction
 
 This C++ static library provides a compact implementation of the forward and inverse kinematics of a three‑tube CTR. It targets research and prototyping workflows where reproducible results, modularity, and extensibility are needed.
 
-## Features {#features}
+## Features
 
 - Forward kinematics for a three‑tube CTR.
 - Inverse kinematics (differential position control).
@@ -42,7 +42,7 @@ This C++ static library provides a compact implementation of the forward and inv
 
 ![Backbone Shape](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/images/Backbone.png)
 
-## Installation {#installation}
+## Installation
 
 To use this library, you can either clone the repository and build it from source as a CMake project (recommended) or download the precompiled binaries for your platform from the [Releases](https://github.com/fcpedrosa/Concentric-Tube-Robot/releases) section.
 
@@ -77,9 +77,9 @@ make -j4
 
 ### Using Precompiled Binaries
 
-Download the precompiled binaries for your platform from the [Releases](https://github.com/fcpedrosa/Concentric-Tube-Robot/releases) section (TBA). Add the library to your C++ project's dependencies and include the appropriate header files.
+Local precompiled outputs are placed in the Releases folder whenever you build. After running a build, you should find the CTR library and the example executable in Releases. For GitHub-hosted binaries, use the [Releases](https://github.com/fcpedrosa/Concentric-Tube-Robot/releases) page.
 
-## Documentation {#documentation}
+## Documentation
 
 You can generate documentation locally using the Doxygen target:
 
@@ -89,17 +89,17 @@ cmake --build build --target doc_doxygen
 
 Open the output at `build/docs/html/index.html`.
 
-## Usage {#usage}
+## Usage
 
 For detailed documentation on the library's API and usage, please refer to the [Documentation](https://fcpedrosa.github.io/Concentric-Tube-Robot/html/index.html) section.
 
-## CMake Options {#cmake-options}
+## CMake Options
 
 - Uses C++23 by default.
 - Builds a static library target `CTRlib` and an executable target `${PROJECT_NAME}`.
 - Doxygen docs target: `doc_doxygen`.
 
-## Folder Layout {#folder-layout}
+## Folder Layout
 
 - `ctr_library/include` — Public headers
 - `ctr_library/src` — Library sources
@@ -107,19 +107,19 @@ For detailed documentation on the library's API and usage, please refer to the [
 - `docs` — Generated documentation (if built)
 - `images` — Figures used by docs and README
 
-## Examples {#examples}
+## Examples
 
 The [examples](https://github.com/fcpedrosa/Concentric-Tube-Robot/tree/main/examples) directory contains some usage examples to help you get started.
 
-## Contributing {#contributing}
+## Contributing
 
 Contributions to this project are welcome! If you find any issues or have ideas for improvements, please open an issue or submit a pull request.
 
-## License {#license}
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/LICENSE) file for details.
 
-## Contact {#contact}
+## Contact
 
 For any questions or inquiries, feel free to contact me:
 

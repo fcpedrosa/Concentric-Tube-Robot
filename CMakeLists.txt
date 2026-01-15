@@ -84,6 +84,21 @@ endif()
 add_subdirectory(ctr_library) # static CTR library
 add_subdirectory(executable)  # main executable
 
+# Release artifacts folder (local precompiled outputs)
+set(RELEASES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Releases")
+
+add_custom_target(release_artifacts ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${RELEASES_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:CTRlib>"
+        "${RELEASES_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:${PROJECT_NAME}>"
+        "${RELEASES_DIR}"
+    COMMENT "Copying build artifacts to Releases folder")
+
+add_dependencies(release_artifacts CTRlib ${PROJECT_NAME})
+
 # Doxygen documentation
 find_package(Doxygen REQUIRED)
 if(DOXYGEN_FOUND)
