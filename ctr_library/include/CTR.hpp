@@ -21,7 +21,18 @@
 #include <tuple>
 
 /**
+ * @file CTR.hpp
+ * @brief Public interface for the CTR library.
+ * @ingroup ctr_core
+ * @details Defines the primary API for kinematics, configuration, and control of a three-tube CTR.
+ */
+
+/**
  * @brief Class implementing a three-tube Concentric Tube Robot (CTR).
+ * @ingroup ctr_core
+ * @details Encapsulates forward/inverse kinematics, actuation configuration, and
+ *          numerical shooting methods for a three-tube CTR. Lengths are in meters,
+ *          angles in radians, and forces/moments in SI units.
  */
 class CTR
 {
@@ -34,24 +45,24 @@ public:
 	/**
 	 * @brief Implements the overloaded constructor for the CTR class.
 	 *
-	 * @param Tb A 3-dimensional std::array containing smart pointers to the three tube objects comprising the CTR assembly.
-	 * @param q A 6-dimensional static Blaze vector containing the actuation input values for the CTR.
-	 * @param Tol A scalar that dictates the prescribed accuracy (tolerance) for solving the associated Boundary Value Problem (BVP).
-	 * @param method An enum class specifying the root-finding method. The possible choices are: NEWTON_RAPHSON, LEVENBERG_MARQUARDT, POWELL_DOG_LEG, MODIFIED_NEWTON_RAPHSON, BROYDEN, and BROYDEN_II.
+	 * @param[in] Tb A 3-dimensional std::array containing smart pointers to the three tube objects comprising the CTR assembly.
+	 * @param[in] q A 6-dimensional static Blaze vector containing the actuation input values for the CTR.
+	 * @param[in] Tol A scalar that dictates the prescribed accuracy (tolerance) for solving the associated Boundary Value Problem (BVP).
+	 * @param[in] method An enum class specifying the root-finding method. The possible choices are: NEWTON_RAPHSON, LEVENBERG_MARQUARDT, POWELL_DOG_LEG, MODIFIED_NEWTON_RAPHSON, BROYDEN, and BROYDEN_II.
 	 */
 	CTR(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, blaze::StaticVector<double, 6UL> &q, const double Tol, const mathOp::rootFindingMethod method);
 
 	/**
 	 * @brief Implements the copy constructor for the CTR class.
 	 *
-	 * @param rhs The source CTR object to copy from.
+	 * @param[in] rhs The source CTR object to copy from.
 	 */
 	CTR(const CTR &rhs);
 
 	/**
 	 * @brief Implements the move constructor for the CTR class.
 	 *
-	 * @param rhs The source CTR object to move from.
+	 * @param[in] rhs The source CTR object to move from.
 	 */
 	CTR(CTR &&rhs) noexcept;
 
@@ -63,7 +74,7 @@ public:
 	/**
 	 * @brief Implements the copy assignment operator for the CTR class.
 	 *
-	 * @param rhs The source CTR object to copy from.
+	 * @param[in] rhs The source CTR object to copy from.
 	 * @return A reference to the assigned CTR object.
 	 */
 	CTR &operator=(const CTR &rhs);
@@ -71,7 +82,7 @@ public:
 	/**
 	 * @brief Implements the move assignment operator for the CTR class.
 	 *
-	 * @param rhs The source CTR object to move from.
+	 * @param[in] rhs The source CTR object to move from.
 	 * @return A reference to the assigned CTR object.
 	 */
 	CTR &operator=(CTR &&rhs) noexcept;
@@ -112,7 +123,7 @@ public:
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Powell's Dog Leg Method to find the zero of the residue function.
 	 *
-	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
+	 * @param[in,out] initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
 	bool PowellDogLeg(blaze::StaticVector<double, 5UL> &initGuess);
@@ -120,7 +131,7 @@ public:
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Levenberg-Marquardt Method to find the zero of the residue function.
 	 *
-	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
+	 * @param[in,out] initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
 	bool Levenberg_Marquardt(blaze::StaticVector<double, 5UL> &initGuess);
@@ -128,7 +139,7 @@ public:
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Broyden's Method (Jacobian inverse is estimated) to find the zero of the residue function.
 	 *
-	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
+	 * @param[in,out] initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
 	bool Broyden(blaze::StaticVector<double, 5UL> &initGuess);
@@ -136,7 +147,7 @@ public:
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Broyden's Method (Jacobian inverse is estimated) to find the zero of the residue function.
 	 *
-	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
+	 * @param[in,out] initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
 	bool Broyden_II(blaze::StaticVector<double, 5UL> &initGuess);
@@ -144,7 +155,7 @@ public:
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the Newton-Raphson's Method to find the zero of the residue function.
 	 *
-	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
+	 * @param[in,out] initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
 	bool Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess);
@@ -152,7 +163,7 @@ public:
 	/**
 	 * @brief Nonlinear root-finding algorithm for solving the shooting method. It implements the modified Newton-Raphson's Method to find the zero of the residue function.
 	 *
-	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
+	 * @param[in,out] initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
 	 * @return a boolean flag. True: the zero (root) of the residue function has been found | False: the zero (root) of the residue function has not been found
 	 */
 	bool Modified_Newton_Raphson(blaze::StaticVector<double, 5UL> &initGuess);
@@ -160,8 +171,8 @@ public:
 	/**
 	 * @brief Actuates the CTR robot to a configuration determined by the actuation inputs and the associated boundary conditions dictated by the initial guess for the BVP
 	 *
-	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
-	 * @param q_input is a 6-dimensional vector of the actuation units The first three entries are the linear joints, the last three are the revolute ones.
+	 * @param[in,out] initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
+	 * @param[in] q_input is a 6-dimensional vector of the actuation units The first three entries are the linear joints, the last three are the revolute ones.
 	 * @return a boolean flag. True: the associated BVP has been solved successfully | False: otherwise
 	 */
 	bool actuate_CTR(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 6UL> &q_input);
@@ -169,9 +180,9 @@ public:
 	/**
 	 * @brief Implements the differential inverse kinematics based on resolved rates motion of the actuators
 	 *
-	 * @param initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
-	 * @param target is a 3-dimensional vector of the target position to where the end-effector (distal-end of the CTR) should be steered to.
-	 * @param Tol is a scalar indicating the tolerance with which the position control problem should be solved.
+	 * @param[in,out] initGuess is the initial guess 5-dimensional vector for the boundary value problem (BVP).
+	 * @param[in] target is a 3-dimensional vector of the target position to where the end-effector (distal-end of the CTR) should be steered to.
+	 * @param[in] Tol is a scalar indicating the tolerance with which the position control problem should be solved.
 	 * @return a boolean flag. True: the associated IK has been solved successfully within the prescribed tolerance | False: otherwise
 	 */
 	bool posCTRL(blaze::StaticVector<double, 5UL> &initGuess, const blaze::StaticVector<double, 3UL> &target, const double Tol);

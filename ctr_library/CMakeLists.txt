@@ -1,6 +1,3 @@
-# Define project name and version
-project(CTR VERSION 1.0 LANGUAGES CXX)
-
 # listing the CTR library source files into a variable
 set(CTR_LIB_SOURCES
     src/CTR.cpp
@@ -12,6 +9,11 @@ set(CTR_LIB_SOURCES
 
 # Create the CTR static library
 add_library(CTRlib STATIC ${CTR_LIB_SOURCES})
+
+target_link_libraries(CTRlib
+    PUBLIC project_options
+    PRIVATE project_warnings
+)
 
 # Include directories for the CTR library
 target_include_directories(CTRlib

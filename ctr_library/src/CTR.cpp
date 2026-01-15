@@ -135,7 +135,7 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 	// retrieving the bending & torsional stiffness and precurvatures in all segments of the CTR in the current
 	const auto [EI, GJ, U_x, U_y, S] = this->m_segment->returnParameters();
 
-		// ##################################################### NUMERICAL METHOD FOR ODE INTEGRATION #####################################################
+	// ##################################################### NUMERICAL METHOD FOR ODE INTEGRATION #####################################################
 
 	// ********************************  8-th ORDER ADAPTIVE ADAMS-BASHFORTH-MOULTON STEPPER ********************************
 	boost::numeric::odeint::adaptive_adams_bashforth_moulton<8UL,
@@ -150,11 +150,11 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 
 	// start and end points, in terms of arc-length s, of each CTR segment and initial step-size for integration (ds)
 	double startArcLength, endArcLength;
-	double constexpr ds = 1.00E-3;
+	constexpr double ds = 1.00E-3;
 
 	// Tolerance parameters for the adaptive stepper
-	constexpr double abs_tol = 1.00E-10;
-	constexpr double rel_tol = 1.00E-8;
+	constexpr double abs_tol = 1.00E-8;
+	constexpr double rel_tol = 1.00E-6;
 
 	auto controlled_stepper = boost::numeric::odeint::make_controlled(abs_tol, rel_tol, abm8_stepper);
 
@@ -205,8 +205,8 @@ blaze::StaticVector<double, 5UL> CTR::ODESolver(const blaze::StaticVector<double
 			abm8_stepper,			 // controlled adaptive stepper with error tolerances
 			*this->m_stateEquations, // ODE system
 			y_0,					 // initial conditions
-			startArcLength,			 // initial arc-length (start of i-th CTR segment)
-			endArcLength,			 // initial arc-length (end of i-th CTR segment)
+			startArcLength,			 // proximal arc-length (start of i-th CTR segment)
+			endArcLength,			 // distal arc-length (end of i-th CTR segment)
 			ds,						 // initial spatial step
 			*this->m_stateObserver	 // observer for saving the values of the state vector
 		);

@@ -7,7 +7,15 @@
 #include <blaze/Math.h>
 
 /**
+ * @file Tube.hpp
+ * @brief Tube model definitions.
+ * @ingroup ctr_model
+ * @details Represents geometric and material properties of a single tube.
+ */
+
+/**
  * @brief Represents a tube in the concentric arrangement comprising the CTR robot
+ * @ingroup ctr_model
  */
 class Tube
 {
@@ -81,13 +89,13 @@ public:
 	/**
 	 * @brief Implements the overloaded constructor for the Tube class.
 	 *
-	 * @param OD The outer diameter of the tube.
-	 * @param ID The inner diameter of the tube.
-	 * @param E The Young's modulus of the tube material.
-	 * @param G The Shear modulus of the tube material
-	 * @param ls The length of the straight transmission of the tube
-	 * @param lc The length of the curved segment of the tube
-	 * @param u_ast A 3-dimensional static Blaze vector of the pre-curvature of the tube
+	 * @param[in] OD The outer diameter of the tube.
+	 * @param[in] ID The inner diameter of the tube.
+	 * @param[in] E The Young's modulus of the tube material.
+	 * @param[in] G The Shear modulus of the tube material
+	 * @param[in] ls The length of the straight transmission of the tube
+	 * @param[in] lc The length of the curved segment of the tube
+	 * @param[in] u_ast A 3-dimensional static Blaze vector of the pre-curvature of the tube
 	 */
 	Tube(double OD, double ID, double E, double G, double ls, double lc, const blaze::StaticVector<double, 3UL> &u_ast);
 
@@ -99,21 +107,21 @@ public:
 	/**
 	 * @brief Implements the copy constructor for the Tube class.
 	 *
-	 * @param rhs The source Tube object to copy from.
+	 * @param[in] rhs The source Tube object to copy from.
 	 */
 	Tube(const Tube &rhs);
 
 	/**
 	 * @brief Implements the move constructor for the Tube class.
 	 *
-	 * @param rhs The source Tube object to move from.
+	 * @param[in] rhs The source Tube object to move from.
 	 */
 	Tube(Tube &&rhs) noexcept;
 
 	/**
 	 * @brief Implements the copy assignment operator for the Tube class.
 	 *
-	 * @param rhs The source Tube object to copy from.
+	 * @param[in] rhs The source Tube object to copy from.
 	 * @return A reference to the assigned Tube object.
 	 */
 	Tube &operator=(const Tube &rhs);
@@ -121,7 +129,7 @@ public:
 	/**
 	 * @brief Implements the move assignment operator for the Tube class.
 	 *
-	 * @param rhs The source Tube object to move from.
+	 * @param[in] rhs The source Tube object to move from.
 	 * @return A reference to the assigned Tube object.
 	 */
 	Tube &operator=(Tube &&rhs) noexcept;
@@ -171,15 +179,15 @@ public:
 	/**
 	 * @brief Implements a setter method for updating the pre-curvature of the Tube object
 	 *
-	 * @param u_ast 3-dimensional static Blaze vector with the new pre-curvature of the tube
+	 * @param[in] u_ast 3-dimensional static Blaze vector with the new pre-curvature of the tube
 	 */
 	void set_u_ast(const blaze::StaticVector<double, 3UL> &u_ast);
 
 	/**
 	 * @brief Implements a setter method for updating the pre-curvature of the Tube object along a specific direction
 	 *
-	 * @param id A size_t index of the direction 0: 'x', 1: 'y'
-	 * @param u scalar with the pre-curvature of the tube along the 'x' or 'y' directions, as determined by id
+	 * @param[in] id A size_t index of the direction 0: 'x', 1: 'y'
+	 * @param[in] u scalar with the pre-curvature of the tube along the 'x' or 'y' directions, as determined by id
 	 */
 	void set_u_ast(const size_t id, const double u);
 

@@ -6,7 +6,15 @@
 #include "Tube.hpp"
 
 /**
+ * @file Segment.hpp
+ * @brief Segment model and transition handling.
+ * @ingroup ctr_model
+ * @details Defines segment-level parameters between tube transition points.
+ */
+
+/**
  * @brief Class representing Segments between transition points in a Concentric Tube Robot (CTR).
+ * @ingroup ctr_model
  */
 class Segment
 {
@@ -55,22 +63,22 @@ public:
     /**
      * @brief Implements the overloaded constructor for the Segment class.
      *
-     * @param Tb A 3-dimensional std::array containing smart pointers to the three tube objects comprising the CTR assembly.
-     * @param beta A 3-dimensional static Blaze vector containing the actuation input values for the linear joints of the CTR.
+     * @param[in] Tb A 3-dimensional std::array containing smart pointers to the three tube objects comprising the CTR assembly.
+     * @param[in] beta A 3-dimensional static Blaze vector containing the actuation input values for the linear joints of the CTR.
      */
     Segment(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, const blaze::StaticVector<double, 3UL> &beta);
 
     /**
      * @brief Implements the copy constructor for the Segment class.
      *
-     * @param rhs The source Segment object to copy from.
+     * @param[in] rhs The source Segment object to copy from.
      */
     Segment(const Segment &rhs);
 
     /**
      * @brief Implements the move constructor for the Segment class.
      *
-     * @param rhs The source Segment object to move from.
+     * @param[in] rhs The source Segment object to move from.
      */
     Segment(Segment &&rhs) noexcept;
 
@@ -82,7 +90,7 @@ public:
     /**
      * @brief Implements the copy assignment operator for the Segment class.
      *
-     * @param rhs The source Segment object to copy from.
+     * @param[in] rhs The source Segment object to copy from.
      * @return A reference to the assigned Segment object.
      */
     Segment &operator=(const Segment &rhs);
@@ -90,7 +98,7 @@ public:
     /**
      * @brief Implements the move assignment operator for the Segment class.
      *
-     * @param rhs The source Segment object to move from.
+     * @param[in] rhs The source Segment object to move from.
      * @return A reference to the assigned Segment object.
      */
     Segment &operator=(Segment &&rhs) noexcept;
@@ -98,8 +106,8 @@ public:
     /**
      * @brief Computes the tube transition points and the corresponding parameters at each segment.
      *
-     * @param Tb A 3-dimensional std::array containing smart pointers to the three tube objects comprising the CTR assembly.
-     * @param beta A 3-dimensional static Blaze vector containing the actuation input values for the linear joints of the CTR.
+     * @param[in] Tb A 3-dimensional std::array containing smart pointers to the three tube objects comprising the CTR assembly.
+     * @param[in] beta A 3-dimensional static Blaze vector containing the actuation input values for the linear joints of the CTR.
      */
     void recalculateSegments(const std::array<std::shared_ptr<Tube>, 3UL> &Tb, const blaze::StaticVector<double, 3UL> &beta);
 

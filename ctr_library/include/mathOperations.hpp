@@ -5,6 +5,17 @@
 #include <blaze/Math.h>
 #include <iostream>
 
+/**
+ * @file mathOperations.hpp
+ * @brief Math utilities for kinematic computations.
+ * @ingroup ctr_math
+ * @details Provides numeric helpers, rotations, and linear algebra utilities.
+ */
+
+/**
+ * @brief Math helpers and utility functions.
+ * @ingroup ctr_math
+ */
 namespace mathOp
 {
 	/**
@@ -35,7 +46,7 @@ namespace mathOp
 	/**
 	 * @brief Computes the closest congruent of an angle within the [0, 3Pi] interval
 	 *
-	 * @param degree Angle in radians.
+	 * @param[in] angle Angle in radians.
 	 * @return The corresponding closest congruent angle in radians within [0, 3Pi].
 	 */
 	inline double congruentAngle(double angle)
@@ -47,7 +58,7 @@ namespace mathOp
 	/**
 	 * @brief Computes and returns a vector that is orthogonal to a vector provided by the user
 	 *
-	 * @param v The user provided 3-dimensional static Blaze vector.
+	 * @param[in] v The user provided 3-dimensional static Blaze vector.
 	 * @return A 3-dimensional Blaze vector orthogonal to the input vector 'v'.
 	 */
 	inline blaze::StaticVector<double, 3UL> orthogonal(const blaze::StaticVector<double, 3UL> &v)
@@ -68,8 +79,8 @@ namespace mathOp
 	/**
 	 * @brief Computes and returns the least quaternion rotation between two user provided vectors vectors a and b. The rotation is from vector a to vector b. Both vectors are 3-dimensional.
 	 *
-	 * @param a The input 3-dimensional static Blaze vector 'a'.
-	 * @param b The input 3-dimensional static Blaze vector 'b'.
+	 * @param[in] a The input 3-dimensional static Blaze vector 'a'.
+	 * @param[in] b The input 3-dimensional static Blaze vector 'b'.
 	 * @return The static Blaze vector corresponding to the least quaternion rotation from 'a' to 'b'.
 	 */
 	inline blaze::StaticVector<double, 4UL> getRotationBetween(const blaze::StaticVector<double, 3UL> &a, const blaze::StaticVector<double, 3UL> &b)
@@ -97,7 +108,7 @@ namespace mathOp
 	/**
 	 * @brief Computes pseudo-inverse of a MxN matrix, where max(M,N) = 6, via SVD decomposition.
 	 *
-	 * @param M The input MxN Hybrid Blaze matrix M.
+	 * @param[in] M The input MxN Hybrid Blaze matrix M.
 	 * @return The corresponding pseudo-inverse of M as a NxM Blaze matrix.
 	 */
 	inline blaze::HybridMatrix<double, 6UL, 6UL> pInv(const blaze::HybridMatrix<double, 6UL, 6UL> &M)
@@ -133,8 +144,8 @@ namespace mathOp
 	/**
 	 * @brief Converts a rotation matrix in SO(3) into the corresponding orientation in quaternions. The quaternion is passed by reference and is modified by the function.
 	 *
-	 * @param h The input 4-dimensional static Blaze vector corresponding to the quaternion to be computed.
-	 * @param R The input static rotation Blaze matrix in SO(3).
+	 * @param[in,out] h The input 4-dimensional static Blaze vector corresponding to the quaternion to be computed.
+	 * @param[in] R The input static rotation Blaze matrix in SO(3).
 	 */
 	inline void SO3_To_Quaternion(blaze::StaticVector<double, 4UL> &h, const blaze::StaticMatrix<double, 3UL, 3UL> &R)
 	{
@@ -190,10 +201,10 @@ namespace mathOp
 	 * @brief Converts an Euler-angle representation of 3D rotations into the corresponding orientation in quaternions.
 	 * The quaternion is passed by reference and is modified by the function.
 	 *
-	 * @param heading The heading angle in the Euler-angles representation
-	 * @param attitude The attitude angle in the Euler-angles representation
-	 * @param bank The bank angle in the Euler-angles representation
-	 * @param h The input 4-dimensional static Blaze vector corresponding to the quaternion to be computed.
+	 * @param[in] heading The heading angle in the Euler-angles representation
+	 * @param[in] attitude The attitude angle in the Euler-angles representation
+	 * @param[in] bank The bank angle in the Euler-angles representation
+	 * @param[in,out] h The input 4-dimensional static Blaze vector corresponding to the quaternion to be computed.
 	 */
 	inline void euler2Quaternion(const double heading, const double attitude, const double bank, blaze::StaticVector<double, 4UL> &h)
 	{
@@ -283,11 +294,11 @@ namespace mathOp
 
 	/**
 	 * @brief Computes and returns the pre-multiplication of a 3-dimensional square matrix by the hat operator applied on a 3-dimensional vector.
-	 * That is to say, the operation: \hat{v} * M
+	 * That is to say, the operation: \f$\hat{v} M\f$.
 	 *
-	 * @param v The input 3-dimensional static Blaze vector.
-	 * @param M The corresponding 3-dimensional square Blaze matrix to be premultiplied.
-	 * @result The 3-dimensional square Blaze matrix containing the result of the operation.
+	 * @param[in] v The input 3-dimensional static Blaze vector.
+	 * @param[in] M The corresponding 3-dimensional square Blaze matrix to be premultiplied.
+	 * @return The 3-dimensional square Blaze matrix containing the result of the operation.
 	 */
 	inline blaze::StaticMatrix<double, 3UL, 3UL> hatPreMultiply(const blaze::StaticVector<double, 3UL> &v, const blaze::StaticMatrix<double, 3UL, 3UL> &M)
 	{
@@ -300,11 +311,11 @@ namespace mathOp
 
 	/**
 	 * @brief Computes and returns the pos-multiplication of a 3-dimensional square matrix by the hat operator applied on a 3-dimensional vector.
-	 * That is to say, the operation: M * \hat{v}
+	 * That is to say, the operation: \f$M \hat{v}\f$.
 	 *
-	 * @param v The input 3-dimensional static Blaze vector.
-	 * @param M The corresponding 3-dimensional square Blaze matrix to be premultiplied.
-	 * @result The 3-dimensional square Blaze matrix containing the result of the operation.
+	 * @param[in] v The input 3-dimensional static Blaze vector.
+	 * @param[in] M The corresponding 3-dimensional square Blaze matrix to be premultiplied.
+	 * @return The 3-dimensional square Blaze matrix containing the result of the operation.
 	 */
 	inline blaze::StaticMatrix<double, 3UL, 3UL> hatPostMultiply(const blaze::StaticMatrix<double, 3UL, 3UL> &M, const blaze::StaticVector<double, 3UL> &v)
 	{
@@ -317,11 +328,11 @@ namespace mathOp
 
 	/**
 	 * @brief Computes and returns product between a vector and the transpose of a matrix.
-	 * That is to say, the operation: R^\top * v
+	 * That is to say, the operation: \f$R^\top v\f$.
 	 *
-	 * @param R The input 3-dimensional static square Blaze matrix.
-	 * @param v The corresponding 3-dimensional square Blaze vector.
-	 * @param The 3-dimensional square Blaze vector containing the result of the operation.
+	 * @param[in] R The input 3-dimensional static square Blaze matrix.
+	 * @param[in] v The corresponding 3-dimensional square Blaze vector.
+	 * @return The 3-dimensional square Blaze vector containing the result of the operation.
 	 */
 	inline blaze::StaticVector<double, 3UL> transposePreMultiply(const blaze::StaticMatrix<double, 3UL, 3UL> &R, const blaze::StaticVector<double, 3UL> &v)
 	{
@@ -335,9 +346,9 @@ namespace mathOp
 	/**
 	 * @brief Computes and returns the derivative of the quaternion orientation with respect to arc-length
 	 *
-	 * @param u The input 3-dimensional static Blaze vector corresponding to the local curvature of the backbone.
-	 * @param h The input 4-dimensional square Blaze vector corresponding to the orientation of the local body frame of the backbone.
-	 * @param The 4-dimensional static Blaze vector corresponding to the local rate of change of the orientation of the backbone with respect to arc-length.
+	 * @param[in] u The input 3-dimensional static Blaze vector corresponding to the local curvature of the backbone.
+	 * @param[in] h The input 4-dimensional square Blaze vector corresponding to the orientation of the local body frame of the backbone.
+	 * @return The 4-dimensional static Blaze vector corresponding to the local rate of change of the orientation of the backbone with respect to arc-length.
 	 */
 	inline blaze::StaticVector<double, 4UL> quaternionDiff(const blaze::StaticVector<double, 3UL> &u, const blaze::StaticVector<double, 4UL> &h)
 	{

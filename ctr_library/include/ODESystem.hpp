@@ -6,7 +6,15 @@
 typedef blaze::StaticVector<double, 15UL> state_type;
 
 /**
+ * @file ODESystem.hpp
+ * @brief ODE system definitions for CTR kinematics.
+ * @ingroup ctr_core
+ * @details Provides the state dynamics used by the numerical integrator.
+ */
+
+/**
  * @brief Implements system of Ordinary Differential equations (ODEs) that model the kinematics of a three-tube CTR
+ * @ingroup ctr_core
  */
 class ODESystem
 {
@@ -99,20 +107,20 @@ public:
 	/**
 	 * @brief Functor that overloads the constructor's signature and implements the system of ODEs governing a three-tube CTR
 	 *
-	 * @param y A 15-dimensional static Blaze vector containing the current values of the state vector at the arc-length 's' within the current segment.
-	 * @param dyds A 15-dimensional static Blaze vector to be computed by the functor. Once the functor is executed, 'dyds' corresponds to the spatial derivative of the state vector at the arc-length 's'.
-	 * @param s The nonnegative scalar corresponding to the arc-length along the CTR backbone at which the computations are taking place
+	 * @param[in] y A 15-dimensional static Blaze vector containing the current values of the state vector at the arc-length 's' within the current segment.
+	 * @param[out] dyds A 15-dimensional static Blaze vector to be computed by the functor. Once the functor is executed, 'dyds' corresponds to the spatial derivative of the state vector at the arc-length 's'.
+	 * @param[in] s The nonnegative scalar corresponding to the arc-length along the CTR backbone at which the computations are taking place
 	 */
 	void operator()(const state_type &y, state_type &dyds, const double s) noexcept;
 
 	/**
 	 * @brief Implements a setter method for updating the kinematic parameters before computation of the ODEs at each arc-length 's'
 	 *
-	 * @param u_ast_x A 3-dimensional static Blaze vector of the pre-curvature of the tubes along the 'x' direction in the present segment.
-	 * @param u_ast_y A 3-dimensional static Blaze vector of the pre-curvature of the tubes along the 'x' direction in the present segment.
-	 * @param EI A 3-dimensional static Blaze vector of bending stiffness of each one of the tubes in the present segment. If the i-th tube isn't present in the current segment, the i-th entry of EI_i will be zero.
-	 * @param GJ A 3-dimensional static Blaze vector of torsional stiffness of each one of the tubes in the present segment. If the i-th tube isn't present in the current segment, the i-th entry of GJ_i will be zero.
-	 * @param force A 3-dimensional static Blaze vector containing the point force acting at the distal-end of the CTR.
+	 * @param[in] u_ast_x A 3-dimensional static Blaze vector of the pre-curvature of the tubes along the 'x' direction in the present segment.
+	 * @param[in] u_ast_y A 3-dimensional static Blaze vector of the pre-curvature of the tubes along the 'x' direction in the present segment.
+	 * @param[in] EI A 3-dimensional static Blaze vector of bending stiffness of each one of the tubes in the present segment. If the i-th tube isn't present in the current segment, the i-th entry of EI_i will be zero.
+	 * @param[in] GJ A 3-dimensional static Blaze vector of torsional stiffness of each one of the tubes in the present segment. If the i-th tube isn't present in the current segment, the i-th entry of GJ_i will be zero.
+	 * @param[in] force A 3-dimensional static Blaze vector containing the point force acting at the distal-end of the CTR.
 	 */
 	void setEquationParameters(const blaze::StaticVector<double, 3UL> &u_ast_x,
 							   const blaze::StaticVector<double, 3UL> &u_ast_y,
