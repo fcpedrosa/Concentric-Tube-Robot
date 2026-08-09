@@ -6,6 +6,7 @@
 #include "TestRobot.hpp"
 
 #include <array>
+#include <cmath>
 #include <vector>
 
 using namespace ctr;
@@ -109,6 +110,66 @@ TEST_CASE("Loaded robot with distal moment converges", "[regression][solvers][lo
     REQUIRE(fk);
     CHECK(fk.residual <= testing::kBVPTol);
     CHECK(blaze::isfinite(robot.tipPosition()));
+}
+
+TEST_CASE("Hard cold-start configuration: honest failure and Broyden escape", "[regression][solvers]")
+{
+    // alpha = [-30, 100, -160] deg is a documented hard cold start: the
+    // Newton-type iterations descend into a non-root local minimum of ||f||^2
+    // (residual ~0.097). Broyden's quasi-Newton path escapes it, which is why
+    // the default solver's fallback cascade tries a zero-restarted Broyden.
+    const blaze::StaticVector<double, 6UL> qHard = {-0.12, -0.1, -0.08, math::deg2Rad(-30.0), math::deg2Rad(100.0),
+                                                    math::deg2Rad(-160.0)};
+
+    SECTION("Pure Newton-type solvers fail honestly (no fake convergence, finite residual)")
+    {
+        for (const RootFindingMethod method :
+             {RootFindingMethod::LevenbergMarquardt, RootFindingMethod::PowellDogLeg})
+        {
+            CAPTURE(static_cast<int>(method));
+            CTR robot = testing::makeReferenceRobot(method);
+            bvp_type guess{};
+            const FKResult fk = robot.actuate(qHard, guess);
+            CHECK_FALSE(fk);
+            CHECK(std::isfinite(fk.residual));
+            CHECK(fk.residual > testing::kBVPTol);
+        }
+    }
+
+    SECTION("The default solver converges via its Broyden fallback stage")
+    {
+        CTR robot = testing::makeReferenceRobot(RootFindingMethod::ModifiedNewtonRaphson);
+        bvp_type guess{};
+        const FKResult fk = robot.actuate(qHard, guess);
+        REQUIRE(fk);
+        CHECK(fk.residual <= testing::kBVPTol);
+    }
+
+    SECTION("Broyden converges cold")
+    {
+        CTR robot = testing::makeReferenceRobot(RootFindingMethod::Broyden);
+        bvp_type guess{};
+        const FKResult fk = robot.actuate(qHard, guess);
+        REQUIRE(fk);
+        CHECK(fk.residual <= testing::kBVPTol);
+    }
+
+    SECTION("Warm-start continuation reaches the configuration")
+    {
+        CTR robot = testing::makeReferenceRobot();
+        bvp_type guess{};
+        bool ok = true;
+        for (int step = 1; step <= 4 && ok; ++step)
+        {
+            blaze::StaticVector<double, 6UL> qi = qHard;
+            const double t = step / 4.0;
+            qi[3UL] *= t;
+            qi[4UL] *= t;
+            qi[5UL] *= t;
+            ok = static_cast<bool>(robot.actuate(qi, guess));
+        }
+        CHECK(ok);
+    }
 }
 
 TEST_CASE("Re-actuating at the converged guess is a fixed point", "[regression][solvers]")

@@ -15,11 +15,12 @@ using namespace ctr;
 namespace
 {
 
-blaze::StaticVector<double, 3UL> tipAt(const blaze::StaticVector<double, 6UL> &q, double ds)
+// Warm-started across step sizes: the study measures integration accuracy of
+// one physical solution, not cold-start solver robustness (covered elsewhere).
+blaze::StaticVector<double, 3UL> tipAt(const blaze::StaticVector<double, 6UL> &q, double ds, bvp_type &guess)
 {
     CTR robot = testing::makeReferenceRobot();
     robot.setIntegrationStep(ds);
-    bvp_type guess{};
     REQUIRE(robot.actuate(q, guess));
     return robot.tipPosition();
 }
@@ -48,12 +49,13 @@ TEST_CASE("Fixed-step RK4: observed order and default-step accuracy", "[slow][co
     {
         CAPTURE(q[4UL], q[5UL]);
 
-        const auto reference = tipAt(q, 0.25e-3);
+        bvp_type guess{};
+        const auto reference = tipAt(q, 0.25e-3, guess);
 
         const std::array<double, 3UL> steps = {4.0e-3, 2.0e-3, 1.0e-3};
         std::array<double, 3UL> errors{};
         for (std::size_t i = 0; i < steps.size(); ++i)
-            errors[i] = blaze::linfNorm(tipAt(q, steps[i]) - reference);
+            errors[i] = blaze::linfNorm(tipAt(q, steps[i], guess) - reference);
 
         CAPTURE(errors[0], errors[1], errors[2]);
 

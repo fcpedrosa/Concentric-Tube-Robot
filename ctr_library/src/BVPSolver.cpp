@@ -1,6 +1,5 @@
 #include "BVPSolver.hpp"
 #include "ctr/CTR.hpp"
-#include "ctr/detail/mathOperations.hpp"
 
 #include <cmath>
 #include <limits>
@@ -27,6 +26,53 @@ namespace
     return {status, iterations, res_norm};
 }
 
+/// Shared iteration budget: warm-started solves need < 10 iterations; a solve
+/// that has not converged by 50 will not converge (caps worst-case cost).
+inline constexpr std::size_t kMaxSolverIterations = 50UL;
+
+/**
+ * @brief Inverts a BVP Jacobian.
+ *
+ * Uses Blaze's closed-form 5×5 inversion (allocation- and LAPACK-free). Near
+ * singularity it falls back to the damped pseudo-inverse (JᵀJ + μI)⁻¹Jᵀ with
+ * μ scaled to the Jacobian's magnitude; if even that is non-finite, returns a
+ * zero matrix (turning the caller's step into a detectable stall rather than
+ * a NaN cascade).
+ */
+[[nodiscard]] Mat<BVP_DIM, BVP_DIM> invertJacobian(const Mat<BVP_DIM, BVP_DIM> &J)
+{
+    try
+    {
+        Mat<BVP_DIM, BVP_DIM> Jinv(J);
+        blaze::invert(Jinv);
+        if (blaze::isfinite(Jinv))
+            return Jinv;
+    }
+    catch (const std::exception &)
+    {
+        // fall through to the damped pseudo-inverse
+    }
+
+    Mat<BVP_DIM, BVP_DIM> A = blaze::trans(J) * J;
+    double mu = 1.0e-10 * blaze::max(blaze::abs(blaze::diagonal(A)));
+    if (!(mu > 0.0) || !std::isfinite(mu))
+        mu = 1.0e-10;
+    for (std::size_t i = 0UL; i < BVP_DIM; ++i)
+        A(i, i) += mu;
+
+    try
+    {
+        blaze::invert(A);
+        Mat<BVP_DIM, BVP_DIM> pinv = A * blaze::trans(J);
+        if (blaze::isfinite(pinv))
+            return pinv;
+    }
+    catch (const std::exception &)
+    {
+    }
+    return Mat<BVP_DIM, BVP_DIM>(0.0);
+}
+
 } // namespace
 
 // ─── Powell Dog-Leg ──────────────────────────────────────────────────────────
@@ -35,7 +81,7 @@ FKResult PowellDogLegSolver::solve(bvp_type &initGuess, ShootingProblem &problem
 {
     bool found;
     std::size_t k = 0UL;
-    constexpr std::size_t k_max = 300UL;
+    constexpr std::size_t k_max = kMaxSolverIterations;
     double alpha, beta, delta, eps1, eps2, rho, c;
     bvp_type g, f, f_new, x_new, h_sd, h_gn, h_dl;
     Mat<BVP_DIM, BVP_DIM> J;
@@ -43,7 +89,7 @@ FKResult PowellDogLegSolver::solve(bvp_type &initGuess, ShootingProblem &problem
     sanitizeBVPGuess(initGuess);
 
     delta = 1.0;
-    eps1 = eps2 = 1.0e-22;
+    eps1 = eps2 = 1.0e-12;
 
     f = problem.residual(initGuess);
     J = problem.jacobian(initGuess, f);
@@ -57,7 +103,7 @@ FKResult PowellDogLegSolver::solve(bvp_type &initGuess, ShootingProblem &problem
 
         alpha = blaze::sqrNorm(g) / blaze::sqrNorm(J * g);
         h_sd = -alpha * g;
-        h_gn = -math::pInv(J) * f;
+        h_gn = -(invertJacobian(J) * f);
 
         if (blaze::norm(h_gn) <= delta)
             h_dl = h_gn;
@@ -120,11 +166,11 @@ FKResult PowellDogLegSolver::solve(bvp_type &initGuess, ShootingProblem &problem
 FKResult LevenbergMarquardtSolver::solve(bvp_type &initGuess, ShootingProblem &problem)
 {
     std::size_t k = 0UL;
-    constexpr std::size_t k_max = 300UL;
+    constexpr std::size_t k_max = kMaxSolverIterations;
     bvp_type h, g, f, f_new;
     Mat<BVP_DIM, BVP_DIM> J, A;
     blaze::IdentityMatrix<double> I(BVP_DIM);
-    double rho, nu = 2.0, mu, tau = 1.0e-3, e1 = 1.0e-18;
+    double rho, nu = 2.0, mu, tau = 1.0e-3, e1 = 1.0e-12;
     bool found;
 
     sanitizeBVPGuess(initGuess);
@@ -179,11 +225,11 @@ FKResult BroydenSolver::solve(bvp_type &initGuess, ShootingProblem &problem)
 
     X = initGuess;
     F = problem.residual(X);
-    JacInv = math::pInv(problem.jacobian(X, F));
+    JacInv = invertJacobian(problem.jacobian(X, F));
     bool found = (blaze::linfNorm(F) <= problem.tolerance());
 
     std::size_t k = 0UL;
-    constexpr std::size_t k_max = 300UL;
+    constexpr std::size_t k_max = kMaxSolverIterations;
     while (!found && (k < k_max))
     {
         k++;
@@ -206,13 +252,13 @@ FKResult BroydenSolver::solve(bvp_type &initGuess, ShootingProblem &problem)
             X *= 0.75;
             sanitizeBVPGuess(X);
             F = problem.residual(X);
-            JacInv = math::pInv(problem.jacobian(X, F));
+            JacInv = invertJacobian(problem.jacobian(X, F));
         }
 
         if (k % 10UL == 0UL)
         {
             // Periodic exact refresh keeps the update from drifting.
-            JacInv = math::pInv(problem.jacobian(X, F));
+            JacInv = invertJacobian(problem.jacobian(X, F));
         }
         else
         {
@@ -248,7 +294,7 @@ FKResult ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, ShootingProblem
     Mat<BVP_DIM, BVP_DIM> D, D_inv;
     double h, h_0, gamma, improvementFactor, d_norm, Dh_norm;
     std::size_t j = 0UL, k = 0UL;
-    constexpr std::size_t k_max = 300UL;
+    constexpr std::size_t k_max = kMaxSolverIterations;
     constexpr std::size_t j_max = 60UL; // 0.5^60 ~ 1e-18: step is numerically nil
 
     found = (blaze::linfNorm(f) <= problem.tolerance());
@@ -265,11 +311,11 @@ FKResult ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, ShootingProblem
             sanitizeBVPGuess(initGuess);
             f = problem.residual(initGuess);
             D = problem.jacobian(initGuess, f);
-            if (++isfinite_guard > 100UL)
+            if (++isfinite_guard > 20UL)
                 break;
         }
 
-        D_inv = math::pInv(D);
+        D_inv = invertJacobian(D);
         d = D_inv * f;
         gamma = 1.0 / (blaze::norm(D_inv) * blaze::norm(D));
         h_0 = blaze::sqrNorm(f);
@@ -321,14 +367,32 @@ FKResult ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, ShootingProblem
 
     if (!found)
     {
+        // Fallback cascade. Broyden goes first: as a quasi-Newton method it
+        // follows a different trajectory than the Newton-type solvers and is
+        // empirically able to escape the non-root local minima of ||f||² that
+        // trap MNR/PDL/LM on rotation-heavy cold starts. Each stage restarts
+        // from a progressively cleaner guess — continuing from the stalled
+        // iterate keeps a solver trapped in the same basin, so the later
+        // stages restart from zero outright.
         sanitizeBVPGuess(initGuess);
         initGuess *= 0.75;
-        FKResult fallback = PowellDogLegSolver{}.solve(initGuess, problem);
+        FKResult fallback = BroydenSolver{}.solve(initGuess, problem);
 
         if (!fallback)
         {
-            sanitizeBVPGuess(initGuess);
-            initGuess *= 0.75;
+            initGuess = 0.0; // clean cold restart, away from the stalled basin
+            fallback = BroydenSolver{}.solve(initGuess, problem);
+        }
+
+        if (!fallback)
+        {
+            initGuess = 0.0;
+            fallback = PowellDogLegSolver{}.solve(initGuess, problem);
+        }
+
+        if (!fallback)
+        {
+            initGuess = 0.0;
             fallback = LevenbergMarquardtSolver{}.solve(initGuess, problem);
         }
 

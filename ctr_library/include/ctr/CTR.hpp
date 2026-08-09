@@ -31,6 +31,11 @@ class ShootingProblem; // facade granting solvers access to the FK internals
  *  - Tubes are ordered innermost-first everywhere.
  *  - All returned positions/shapes are in meters, in the global frame at the
  *    robot base (s = 0).
+ *  - The BVP shooting vector (initGuess) is non-dimensionalized to curvature
+ *    units [1/m]: [mb_x(0)/EI₁, mb_y(0)/EI₁, u1z(0), u2z(0), u3z(0)], where
+ *    EI₁ is the innermost tube's bending stiffness. This makes all residue
+ *    components commensurate so a single tolerance is meaningful. A zero
+ *    vector is always a valid cold-start guess.
  */
 class CTR
 {
@@ -205,6 +210,13 @@ class CTR
 
     /** Fixed arc-length integration step [m]. */
     double m_ds = 1.0e-3;
+
+    /** Innermost tube's bending stiffness EI₁ [N·m²] — the moment scale of the
+     *  non-dimensionalized shooting vector. Cached; updated by setTube. */
+    double m_EI1{1.0};
+
+    /** Innermost tube's torsional stiffness GJ₁ [N·m²]. Cached; updated by setTube. */
+    double m_GJ1{1.0};
 
     /** Active root-finding method — stored so copy/move preserve the solver type. */
     RootFindingMethod m_method;

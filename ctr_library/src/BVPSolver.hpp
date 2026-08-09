@@ -19,18 +19,16 @@ class CTR; // forward declaration — avoids circular #include with CTR.hpp
 namespace detail
 {
 
-/// Maximum magnitude of torsional curvature used to clamp an initial BVP guess.
+/// Maximum magnitude of any component of a BVP guess. The shooting vector is
+/// non-dimensionalized (all components are curvatures [1/m]), so one bound
+/// applies uniformly.
 inline constexpr double kMaxBVPTwist = 50.0;
-
-/// Maximum magnitude of the proximal bending-moment components of a BVP guess
-/// [N·m] — generous for sub-millimeter tubes (EI ~ 1e-3 N·m²).
-inline constexpr double kMaxBVPMoment = 1.0;
 
 /**
  * @brief Clamps a BVP initial guess to a physically reasonable range.
  *
- * Non-finite values are replaced by 0; moments (indices 0-1) are clamped to
- * ±kMaxBVPMoment and torsional curvatures (indices 2-4) to ±kMaxBVPTwist.
+ * Non-finite values are replaced by 0; every component is clamped to
+ * ±kMaxBVPTwist (all components are curvatures [1/m]).
  *
  * The moment components are deliberately NOT zeroed: with a distal load the
  * proximal bending moment is nonzero, and zeroing would both make loaded
@@ -43,8 +41,7 @@ inline void sanitizeBVPGuess(bvp_type &x) noexcept
         auto v = x[i];
         if (!std::isfinite(v))
             v = 0.0;
-        const double bound = (i < 2UL) ? kMaxBVPMoment : kMaxBVPTwist;
-        x[i] = std::clamp(v, -bound, bound);
+        x[i] = std::clamp(v, -kMaxBVPTwist, kMaxBVPTwist);
     }
 }
 

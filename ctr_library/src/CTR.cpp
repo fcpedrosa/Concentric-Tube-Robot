@@ -22,6 +22,8 @@ CTR::CTR(std::array<Tube, NUM_TUBES> tubes, const blaze::StaticVector<double, 6U
       m_stateEquations(), m_solver(makeBVPSolver(method))
 {
     m_theta_0 = {0.0, q[4UL] - q[3UL], q[5UL] - q[4UL]};
+    m_EI1 = m_tubes[0UL].getK(Stiffness::Bending);
+    m_GJ1 = m_tubes[0UL].getK(Stiffness::Torsion);
     m_y.reserve(1000UL);
     m_s.reserve(1000UL);
 }
@@ -131,10 +133,12 @@ bvp_type CTR::residual(const bvp_type &initGuess)
                                          boost::numeric::odeint::vector_space_algebra>
         stepper;
 
-    // Initial conditions
+    // Initial conditions. The shooting vector is non-dimensionalized: its
+    // moment components are curvatures mb/EI₁ [1/m]; the ODE state carries
+    // physical moments [N·m].
     state_type y_0;
-    y_0[MB_X] = initGuess[0UL];
-    y_0[MB_Y] = initGuess[1UL];
+    y_0[MB_X] = initGuess[0UL] * m_EI1;
+    y_0[MB_Y] = initGuess[1UL] * m_EI1;
     y_0[UZ_1] = initGuess[2UL];
     y_0[UZ_2] = initGuess[3UL];
     y_0[UZ_3] = initGuess[4UL];
@@ -185,14 +189,17 @@ bvp_type CTR::residual(const bvp_type &initGuess)
         }
     }
 
-    // Distal boundary conditions
+    // Distal boundary conditions, expressed as a NON-DIMENSIONAL residue: every
+    // component is a curvature [1/m] (moment rows scaled by 1/EI₁, the torsion
+    // row by 1/GJ₁), so the single L∞ tolerance weighs all rows equally and the
+    // BVP Jacobian is well-scaled.
     blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R1;
     math::getSO3(blaze::subvector<QUAT_W, 4UL>(y_0), R1);
 
     const blaze::StaticVector<double, 3UL> distalMoment = blaze::trans(R1) * m_wm;
 
-    bvp_type Residue = {y_0[MB_X] - distalMoment[0UL], y_0[MB_Y] - distalMoment[1UL],
-                        GJ(0UL, 0UL) * y_0[UZ_1] - blaze::trans(ODESystem::kE3) * distalMoment, 0.0, 0.0};
+    bvp_type Residue = {(y_0[MB_X] - distalMoment[0UL]) / m_EI1, (y_0[MB_Y] - distalMoment[1UL]) / m_EI1,
+                        y_0[UZ_1] - (blaze::trans(ODESystem::kE3) * distalMoment) / m_GJ1, 0.0, 0.0};
 
     const blaze::StaticVector<double, NUM_TUBES> &distEnd = m_segment.getDistalEnds();
 
@@ -560,6 +567,8 @@ void CTR::setTube(std::size_t idx, Tube tube)
 {
     m_tubes[idx] = std::move(tube);
     m_segment.recalculateSegments(m_tubes, betaView());
+    m_EI1 = m_tubes[0UL].getK(Stiffness::Bending);
+    m_GJ1 = m_tubes[0UL].getK(Stiffness::Torsion);
 }
 
 void CTR::setIntegrationStep(double ds)
