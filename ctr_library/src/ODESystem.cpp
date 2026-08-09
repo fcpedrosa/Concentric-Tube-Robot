@@ -31,8 +31,10 @@ void ODESystem::operator()(const state_type &y, state_type &dyds, const double /
 	// next 2 elements of y are twist angles, theta_i = [theta_1 theta_2  theta_3]
 	// last 7 elements are r(position) and h(quaternion-orientations) of the local frame, respectively at each arc-length s
 
-	const double dtheta_2 = y[THETA_2] - y[THETA_1];
-	const double dtheta_3 = y[THETA_3] - y[THETA_1];
+	// dθᵢ/ds = u_iz − u_1z  (Rucker et al. 2010, eq. 16): torsional-curvature difference,
+	// NOT a difference of the twist angles themselves.
+	const double dtheta_2 = y[UZ_2] - y[UZ_1];
+	const double dtheta_3 = y[UZ_3] - y[UZ_1];
 
 	// implementing curvature equation u_i = transpose(R_z(theta_i))*u_1 + \dot{theta_i}*e3
 	blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R1;

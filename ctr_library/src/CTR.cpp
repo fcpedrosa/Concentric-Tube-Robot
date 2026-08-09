@@ -213,7 +213,7 @@ blaze::StaticMatrix<double, 3UL, 6UL> CTR::jacobian(const bvp_type &initGuess,
     q_scaled = blaze::generate(6UL, [&](std::size_t idx)
                                { return (std::fabs(q_scaled[idx]) > incr_floor)
                                         ? q_scaled[idx]
-                                        : std::copysign(incr_floor, initGuess[idx]); });
+                                        : std::copysign(incr_floor, q_original[idx]); });
 
     // RAII guard: restores m_q and m_segment on any exit path (normal or exception).
     auto doRestore = [&]() noexcept
