@@ -1,0 +1,68 @@
+/**
+@mainpage CTR Kinematics Library
+
+A C++23 library implementing the forward and inverse kinematics of a
+three-tube concentric tube robot (CTR), based on the Cosserat-theory
+kinematic model of Rucker, Jones & Webster (*IEEE Transactions on Robotics*,
+2010).
+
+@section main_quickstart Quickstart
+
+@code{.cpp}
+#include <ctr/CTR.hpp>
+
+using namespace ctr;
+
+// Three tubes, innermost first. All quantities SI (m, Pa, 1/m).
+std::array<Tube, NUM_TUBES> tubes = {
+    Tube{{.OD = 0.92e-3, .ID = 0.80e-3, .E = 65e9, .G = 24.6e9,
+          .ls = 190e-3, .lc = 60e-3, .u_ast = {25.0, 0.0, 0.0}}},
+    Tube{{.OD = 1.10e-3, .ID = 0.97e-3, .E = 65e9, .G = 24.6e9,
+          .ls = 120e-3, .lc = 80e-3, .u_ast = {10.0, 0.0, 0.0}}},
+    Tube{{.OD = 1.40e-3, .ID = 1.20e-3, .E = 65e9, .G = 24.6e9,
+          .ls = 90e-3,  .lc = 40e-3, .u_ast = {7.14, 0.0, 0.0}}},
+};
+
+// q = [β₁ β₂ β₃ | α₁ α₂ α₃]: retractions [m] (non-positive), rotations [rad].
+const blaze::StaticVector<double, 6UL> q = {-120e-3, -100e-3, -80e-3, 0, 0, 0};
+
+CTR robot(std::move(tubes), q, 1e-6);
+
+bvp_type guess{};                              // zero = valid cold start
+FKResult fk = robot.actuate(q, guess);         // forward kinematics
+if (fk)
+    auto tip = robot.tipPosition();            // [m]
+
+IKResult ik = robot.solveIK(tip + blaze::StaticVector<double,3UL>{0, 5e-3, 0},
+                            5e-4, guess);      // inverse kinematics
+if (ik)
+    auto qSolution = ik.q;
+@endcode
+
+@section main_pages Documentation pages
+
+- @ref conventions — units, frames, joint vector layout, state layout
+- @ref model — the Cosserat model, the shooting BVP, and the IK algorithm
+- @ref building — dependencies, building, testing, consuming the package
+
+@section main_design Design highlights
+
+- **Honest results.** ctr::FKResult and ctr::IKResult report what actually
+  happened; ctr::IKResult::converged is true only when the tip actually
+  reached the target within tolerance.
+- **Deterministic integration.** The backbone ODE is integrated with a
+  fixed-step RK4 (default 1 mm; tip accuracy ≈ 3×10⁻¹¹ m for tabletop-scale
+  robots). Determinism is a feature: the finite-difference Jacobians rely on
+  truncation-error cancellation between nominal and perturbed shots.
+- **Exact task Jacobian.** CTR::kinematicJacobian differentiates on the BVP
+  equilibrium manifold via the implicit function theorem — not at frozen
+  shooting variables.
+- **No hidden global state, no LAPACK/BLAS dependency.** Only Boost.Odeint
+  (header-only) and Blaze.
+
+@section main_cite Reference
+
+D. C. Rucker, B. A. Jones and R. J. Webster III, "A Geometrically Exact
+Model for Externally Loaded Concentric-Tube Continuum Robots,"
+IEEE Transactions on Robotics, vol. 26, no. 5, pp. 769-780, 2010.
+*/

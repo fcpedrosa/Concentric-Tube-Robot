@@ -1,0 +1,31 @@
+# Doxygen configuration for the CTR kinematics library.
+# Only settings that differ from the doxygen defaults are listed.
+# Run from the repository root:  doxygen docs/Doxyfile
+
+PROJECT_NAME           = "CTR Kinematics"
+PROJECT_BRIEF          = "Cosserat-rod kinematics for three-tube concentric tube robots"
+PROJECT_NUMBER         = 3.0.0
+
+INPUT                  = ctr_library/include docs/pages
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp *.dox
+STRIP_FROM_INC_PATH    = ctr_library/include
+FULL_PATH_NAMES        = NO
+
+OUTPUT_DIRECTORY       = docs/generated
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+USE_MATHJAX            = YES
+
+EXTRACT_ALL            = NO
+HIDE_UNDOC_MEMBERS     = NO
+WARN_IF_UNDOCUMENTED   = YES
+
+# Internals are documented for maintainers but excluded from the public API docs.
+EXCLUDE_SYMBOLS        = ctr::detail ctr::detail::* ctr::math ctr::math::*
+
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+BUILTIN_STL_SUPPORT    = YES
+
+PREDEFINED             = "BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0"

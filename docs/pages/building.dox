@@ -1,0 +1,71 @@
+/**
+@page building Building, testing and consuming
+
+@section build_deps Dependencies
+
+- CMake ≥ 3.26 and a C++23 compiler (GCC ≥ 13 or Clang ≥ 17)
+- Boost ≥ 1.74 (header-only use: Boost.Odeint)
+- Blaze ≥ 3.8
+
+The test suite uses Catch2 v3, found via `find_package` or fetched
+automatically with FetchContent. Nothing else — no BLAS/LAPACK/TBB.
+
+@section build_build Building
+
+@code{.sh}
+cmake --preset release
+cmake --build --preset release
+./build/release/bin/ctr_demo
+@endcode
+
+Presets: `dev` (Debug + warnings), `dev-asan` (+ Address/UB sanitizers),
+`release`, `release-native` (`-march=native` + LTO), `bench` (benchmarks).
+
+Options: `CTR_ENABLE_WARNINGS`, `CTR_WARNINGS_AS_ERRORS`,
+`CTR_ENABLE_SANITIZERS`, `CTR_ENABLE_NATIVE`, `CTR_ENABLE_LTO`,
+`CTR_BUILD_EXAMPLES`, `CTR_BUILD_BENCHMARKS`, `CTR_BUILD_DOCS`.
+
+@section build_test Testing
+
+@code{.sh}
+ctest --preset release             # everything
+ctest --preset release -L unit     # fast unit tests
+ctest --preset release -LE slow    # skip the convergence study
+@endcode
+
+The regression suite includes golden forward-kinematics values, analytic
+anchors (straight-tube, planar arc-chain, twist-rate identity, rotational
+equivariance), solver cross-validation, Jacobian-vs-central-difference
+checks and FK → IK → FK round trips.
+
+@section build_bench Benchmarks
+
+@code{.sh}
+cmake --preset bench && cmake --build --preset bench
+./build/bench/bin/ctr_benchmarks
+@endcode
+
+@section build_consume Consuming the library
+
+Installed package:
+
+@code{.sh}
+cmake --install build/release --prefix /your/prefix
+@endcode
+
+@code{.cmake}
+find_package(ctr_kinematics CONFIG REQUIRED)
+target_link_libraries(your_app PRIVATE ctr::kinematics)
+@endcode
+
+Or vendored: `add_subdirectory(Concentric-Tube-Robot)` provides the same
+`ctr::kinematics` target.
+
+@section build_docs Documentation
+
+@code{.sh}
+doxygen docs/Doxyfile        # output in docs/generated/html
+@endcode
+
+or configure with `-DCTR_BUILD_DOCS=ON` and build the `ctr_docs` target.
+*/

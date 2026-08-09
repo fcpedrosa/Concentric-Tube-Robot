@@ -100,3 +100,7 @@ endif()
 if(CTR_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()
+
+if(CTR_BUILD_DOCS)
+    add_subdirectory(docs)
+endif()

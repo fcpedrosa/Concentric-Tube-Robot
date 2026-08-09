@@ -86,10 +86,10 @@ class Tube
     explicit Tube(const TubeParams &p);
 
     ~Tube() = default;
-    Tube(const Tube &) = default;
-    Tube(Tube &&) noexcept = default;
-    Tube &operator=(const Tube &) = default;
-    Tube &operator=(Tube &&) noexcept = default;
+    Tube(const Tube &) = default;                ///< Copyable value type.
+    Tube(Tube &&) noexcept = default;             ///< Movable.
+    Tube &operator=(const Tube &) = default;      ///< Copy-assignable.
+    Tube &operator=(Tube &&) noexcept = default;  ///< Move-assignable.
 
     // ─── Getters ─────────────────────────────────────────────────────────────
 

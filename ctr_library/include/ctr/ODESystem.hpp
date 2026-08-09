@@ -45,11 +45,11 @@ class ODESystem
     /** @brief Default constructor. Initialises all parameters to zero. */
     ODESystem();
 
-    ODESystem(const ODESystem &) = default;
-    ODESystem(ODESystem &&) noexcept = default;
+    ODESystem(const ODESystem &) = default;                ///< Copyable.
+    ODESystem(ODESystem &&) noexcept = default;             ///< Movable.
     ~ODESystem() = default;
-    ODESystem &operator=(const ODESystem &) = default;
-    ODESystem &operator=(ODESystem &&) noexcept = default;
+    ODESystem &operator=(const ODESystem &) = default;      ///< Copy-assignable.
+    ODESystem &operator=(ODESystem &&) noexcept = default;  ///< Move-assignable.
 
     /**
      * @brief Functor implementing the ODE right-hand side for Boost.Odeint.

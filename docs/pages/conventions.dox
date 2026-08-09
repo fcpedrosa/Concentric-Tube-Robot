@@ -1,0 +1,67 @@
+/**
+@page conventions Units, frames and conventions
+
+@section conv_units Units
+
+All quantities are SI throughout the public API:
+
+| Quantity              | Unit  |
+|-----------------------|-------|
+| Lengths, positions, shapes | meters [m] |
+| Angles                | radians [rad] |
+| Young's / shear modulus | Pascals [Pa] |
+| Pre-curvatures, curvatures | [1/m] |
+| Forces                | Newtons [N] |
+| Moments               | [N·m] |
+
+There are no hidden unit conversions anywhere (no millimeter-scaled
+outputs). `ctr::math::deg2Rad` is provided for convenience.
+
+@section conv_q The joint vector
+
+The 6-DOF actuation vector is
+
+@f[ q = [\beta_1,\ \beta_2,\ \beta_3,\ \alpha_1,\ \alpha_2,\ \alpha_3] @f]
+
+- @f$\beta_i \le 0@f$ [m]: linear retraction of tube @e i into the actuation
+  unit. Tube @e i spans the arc length @f$[0,\ L_i + \beta_i]@f$.
+- @f$\alpha_i@f$ [rad]: axial rotation of tube @e i at its base.
+- Tubes are ordered **innermost first** everywhere (arrays, indices, matrices).
+
+The telescoping constraints (inner tubes extend at least as far as outer
+ones, with a 5 mm clearance) are enforced by CTR::solveIK when it steps β.
+
+@section conv_frames Frames
+
+The global frame sits at the robot base @f$s = 0@f$ with the backbone
+initially along @f$+z@f$. All returned positions/shapes (CTR::tipPosition,
+CTR::backboneShape, CTR::tubeShapes) are expressed in this frame, in meters.
+
+The orientation along the backbone is carried as a unit quaternion
+@f$h = [w, x, y, z]@f$ of tube 1's body frame; the backbone tangent is the
+third column of the corresponding rotation matrix.
+
+@section conv_state The ODE state vector
+
+`ctr::state_type` is a 15-dimensional vector indexed by `ctr::StateIdx`:
+
+| Indices | Meaning |
+|---------|---------|
+| 0-1     | Transverse bending moment of the assembly @f$m_{b,x}, m_{b,y}@f$ [N·m], tube-1 body frame |
+| 2-4     | Torsional curvatures @f$u_{z,1}, u_{z,2}, u_{z,3}@f$ [1/m] |
+| 5-7     | Twist angles @f$\theta_1 \equiv 0, \theta_2, \theta_3@f$ [rad] |
+| 8-10    | Backbone position @f$r_x, r_y, r_z@f$ [m], global frame |
+| 11-14   | Orientation quaternion @f$w, x, y, z@f$ |
+
+@section conv_bvp The shooting vector
+
+`ctr::bvp_type` holds the five shooting unknowns of the boundary value
+problem in **non-dimensionalized** form (every component in [1/m]):
+
+@f[ x = \left[\frac{m_{b,x}(0)}{EI_1},\ \frac{m_{b,y}(0)}{EI_1},\
+u_{z,1}(0),\ u_{z,2}(0),\ u_{z,3}(0)\right] @f]
+
+where @f$EI_1@f$ is the innermost tube's bending stiffness. A zero vector is
+always a valid cold-start guess; passing the previous solution warm-starts
+the solve (recommended for tracking).
+*/

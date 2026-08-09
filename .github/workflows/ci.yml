@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libboost-dev libblaze-dev
+
+      - name: Configure
+        env:
+          CC: ${{ matrix.compiler == 'gcc' && 'gcc' || 'clang' }}
+          CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+        run: >
+          cmake -S . -B build/ci -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCTR_ENABLE_WARNINGS=ON
+          -DCTR_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build/ci
+
+      - name: Test
+        run: ctest --test-dir build/ci -LE slow --output-on-failure
+
+      - name: Install + consumer smoke test
+        run: |
+          cmake --install build/ci --prefix "$PWD/ci-prefix"
+          mkdir -p consumer && cd consumer
+          cat > CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.26)
+          project(smoke CXX)
+          find_package(ctr_kinematics CONFIG REQUIRED)
+          add_executable(smoke smoke.cpp)
+          target_link_libraries(smoke PRIVATE ctr::kinematics)
+          EOF
+          cat > smoke.cpp <<'EOF'
+          #include <ctr/CTR.hpp>
+          int main()
+          {
+              using namespace ctr;
+              std::array<Tube, NUM_TUBES> tubes = {
+                  Tube{{.OD = 0.92e-3, .ID = 0.80e-3, .E = 65e9, .G = 24.6e9,
+                        .ls = 190e-3, .lc = 60e-3, .u_ast = {25.0, 0.0, 0.0}}},
+                  Tube{{.OD = 1.10e-3, .ID = 0.97e-3, .E = 65e9, .G = 24.6e9,
+                        .ls = 120e-3, .lc = 80e-3, .u_ast = {10.0, 0.0, 0.0}}},
+                  Tube{{.OD = 1.40e-3, .ID = 1.20e-3, .E = 65e9, .G = 24.6e9,
+                        .ls = 90e-3, .lc = 40e-3, .u_ast = {7.14, 0.0, 0.0}}}};
+              const blaze::StaticVector<double, 6UL> q = {-120e-3, -100e-3, -80e-3, 0, 0, 0};
+              CTR robot(std::move(tubes), q, 1e-6);
+              bvp_type guess{};
+              return robot.actuate(q, guess) ? 0 : 1;
+          }
+          EOF
+          cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH="$PWD/../ci-prefix"
+          cmake --build build
+          ./build/smoke
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libboost-dev libblaze-dev
+
+      - name: Configure (ASan + UBSan)
+        run: >
+          cmake -S . -B build/asan -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCTR_ENABLE_WARNINGS=ON
+          -DCTR_ENABLE_SANITIZERS=ON
+
+      - name: Build
+        run: cmake --build build/asan
+
+      - name: Unit tests under sanitizers
+        run: ctest --test-dir build/asan -L unit --output-on-failure

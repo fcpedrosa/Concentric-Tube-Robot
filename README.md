@@ -1,101 +1,129 @@
-<div align="center">
+# Concentric Tube Robot — Kinematics Library
 
-### Concentric Tube Robot Kinematics -- C++ Static Library
+[![CI](https://github.com/fcpedrosa/Concentric-Tube-Robot/actions/workflows/ci.yml/badge.svg)](https://github.com/fcpedrosa/Concentric-Tube-Robot/actions/workflows/ci.yml)
+[![Docs](https://github.com/fcpedrosa/Concentric-Tube-Robot/actions/workflows/docs.yml/badge.svg)](https://fcpedrosa.github.io/Concentric-Tube-Robot/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![CTR Robot](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/images/CTR_Assembly.png)
+A C++23 library implementing the forward and inverse kinematics of a
+**three-tube concentric tube robot (CTR)**, based on the Cosserat-theory
+kinematic model of Rucker, Jones & Webster (*IEEE Transactions on Robotics*,
+2010) [[1]](#references).
 
-</div>
-
-
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/LICENSE)
-[![Build Status](https://travis-ci.com/yourusername/repo-name.svg?branch=main)](https://github.com/fcpedrosa/Concentric-Tube-Robot)
-
-This repository contains a C++ static library for implementing the forward and inverse kinematics of a three-tube concentric tube robot (CTR) based on the Cosserat Theory-based kinematic model as described in the paper:
-
-[1] D. C. Rucker, B. A. Jones, and R. J. Webster III, “A Geometrically Exact Model for Externally Loaded Concentric-Tube Continuum Robots,” IEEE Trans. Robot., vol. 26, no. 5, pp. 769–780, Oct. 2010, doi: 10.1109/TRO.2010.2062570.
-
-## Table of Contents
-
-- [Introduction](#introduction)
-- [Features](#features)
-- [Installation](#installation)
-- [Documentation & Usage](#usage)
-- [Examples](#examples)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
-
-## Introduction
-
-This C++ static library provides a barebone implementation of the forward and inverse kinematics of a three-tube concentric tube robot based on the Cosserat Theory-based kinematic model. As part of my PhD at Western University in London, Ontario, Canada, I have developed this C++ static library to provide a reliable and efficient implementation of the forward and inverse kinematics for a three-tube CTR. The library is based on the Cosserat Theory-based kinematic model as described in [1]. Concentric tube robots have applications in medical robotics and minimally invasive procedures.
+<p align="center">
+  <img src="images/CTR_Assembly.png" alt="CTR assembly" width="55%">
+</p>
 
 ## Features
 
-- Implementation of the forward kinematics of a three-tube CTR.
-- Implementation of the inverse kinematics of a three-tube CTR.
-- Easy-to-use API for integrating the library into your C++ projects.
-- Comprehensive [documentation](https://fcpedrosa.github.io/Concentric-Tube-Robot/html/index.html) explaining the kinematic model and usage of the library.
+- **Forward kinematics** as a shooting-method boundary value problem over the
+  15-dimensional Cosserat state, integrated with a deterministic fixed-step
+  RK4 (tip accuracy ≈ 3×10⁻¹¹ m at the default 1 mm step).
+- **Inverse kinematics** via damped least squares with Levenberg–Marquardt
+  step control, built on the *exact* total kinematic Jacobian (implicit
+  function theorem on the shooting residual). Typical solve: a few
+  milliseconds, warm-started tracking ≈ 1 ms per 2 mm step.
+- **Honest results**: `FKResult`/`IKResult` report convergence, iterations
+  and the achieved error; `IKResult::converged` means the tip actually
+  reached the target within tolerance.
+- **Four BVP solvers** (modified Newton–Raphson with robust fallbacks —
+  default, Levenberg–Marquardt, Powell dog-leg, Broyden), all fixed-size and
+  allocation-free in their linear algebra.
+- **External loading**: distal point forces and moments are supported; the
+  unloaded case automatically uses a reduced 3-unknown fast path.
+- SI units everywhere; value-semantic, exception-validated `Tube` type;
+  proper CMake package with exported `ctr::kinematics` target.
 
-![Backbone Shape](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/images/Backbone.png)
+## Requirements
 
-## Installation
+| Dependency | Version | Notes |
+|---|---|---|
+| CMake      | ≥ 3.26 | |
+| C++ compiler | C++23 | GCC ≥ 13 or Clang ≥ 17 |
+| Boost      | ≥ 1.74 | header-only use (Boost.Odeint) |
+| Blaze      | ≥ 3.8  | linear algebra |
+| Catch2     | v3 (tests only) | found or fetched automatically |
 
-To use this library, you can either clone the repository and build it from source as a CMAKE project (recommended) or download the precompiled binaries for your platform from the [Releases](https://github.com/fcpedrosa/Concentric-Tube-Robot/releases) section.
+## Building
 
-## Building Requirements
-
-Before using the library, ensure that you have the following libraries installed in your system:
-
-* [Boost](https://www.boost.org/)
-* [Blaze Library](https://bitbucket.org/blaze-lib/blaze/src/master/)
-* [LAPACK](http://www.netlib.org/lapack/)
-* [openBLAS](https://www.openblas.net/)
-* [TBB (Threading Building Blocks)](https://www.threadingbuildingblocks.org/)
-
-### Building from Source
-
-1. Clone the repository:
-
-```bash
-git clone https://github.com/fcpedrosa/Concentric-Tube-Robot
+```sh
+git clone https://github.com/fcpedrosa/Concentric-Tube-Robot.git
+cd Concentric-Tube-Robot
+cmake --preset release
+cmake --build --preset release
+./build/release/bin/ctr_demo
 ```
 
-2. Build the library:
+Presets: `dev` (Debug + warnings), `dev-asan` (+ sanitizers), `release`,
+`release-native` (`-march=native` + LTO), `bench` (benchmarks).
 
-```bash
-cd repo-name
-mkdir build && cd build
-cmake ..
-make -j4
+The library is built as `libctr_kinematics.a`.
+
+## Testing
+
+```sh
+ctest --preset release          # full suite
+ctest --preset release -L unit  # fast unit tests only
+ctest --preset release -LE slow # skip the integration convergence study
 ```
 
-3. The library will be built as a static library (`CTR.a`).
+The regression suite pins golden forward-kinematics values, analytic
+anchors (straight-tube, planar arc-chain closed form, twist-rate identity,
+rotational equivariance), 4-solver cross-validation, Jacobian correctness
+against central differences, and FK → IK → FK round trips.
 
-### Using Precompiled Binaries
+## Using the library
 
-Download the precompiled binaries for your platform from the [Releases](https://github.com/fcpedrosa/Concentric-Tube-Robot/releases) section (TBA). Add the library to your C++ project's dependencies and include the appropriate header files.
+```cmake
+find_package(ctr_kinematics CONFIG REQUIRED)
+target_link_libraries(your_app PRIVATE ctr::kinematics)
+```
 
-## Usage
+```cpp
+#include <ctr/CTR.hpp>
+using namespace ctr;
 
-For detailed documentation on the library's API and usage, please refer to the [Documentation](https://fcpedrosa.github.io/Concentric-Tube-Robot/html/index.html) section.
+std::array<Tube, NUM_TUBES> tubes = {
+    Tube{{.OD = 0.92e-3, .ID = 0.80e-3, .E = 65e9, .G = 24.6e9,
+          .ls = 190e-3, .lc = 60e-3, .u_ast = {25.0, 0.0, 0.0}}},   // innermost
+    Tube{{.OD = 1.10e-3, .ID = 0.97e-3, .E = 65e9, .G = 24.6e9,
+          .ls = 120e-3, .lc = 80e-3, .u_ast = {10.0, 0.0, 0.0}}},
+    Tube{{.OD = 1.40e-3, .ID = 1.20e-3, .E = 65e9, .G = 24.6e9,
+          .ls = 90e-3,  .lc = 40e-3, .u_ast = {7.14, 0.0, 0.0}}},   // outermost
+};
 
-## Examples
+// q = [β₁ β₂ β₃ | α₁ α₂ α₃]: retractions [m] (≤ 0), rotations [rad]
+const blaze::StaticVector<double, 6UL> q = {-120e-3, -100e-3, -80e-3, 0, 0, 0};
 
-The [examples](https://github.com/fcpedrosa/Concentric-Tube-Robot/tree/main/examples) directory contains some usage examples to help you get started.
+CTR robot(std::move(tubes), q, 1e-6);
 
-## Contributing
+bvp_type guess{};                       // zero-initialized: valid cold start
+FKResult fk = robot.actuate(q, guess);  // forward kinematics
+IKResult ik = robot.solveIK(target, 5e-4, guess);
+```
 
-Contributions to this project are welcome! If you find any issues or have ideas for improvements, please open an issue or submit a pull request.
+See [`examples/fk_ik_demo.cpp`](examples/fk_ik_demo.cpp) for the complete
+runnable example, and the
+[documentation](https://fcpedrosa.github.io/Concentric-Tube-Robot/) for the
+mathematical model, conventions and API reference.
+
+## Conventions (summary)
+
+- **SI units everywhere**: meters, radians, Pascals, Newtons, 1/m.
+- Joint vector `q = [β₁, β₂, β₃, α₁, α₂, α₃]`, tubes ordered innermost first.
+- The shooting vector (`bvp_type`) is non-dimensionalized to curvature units;
+  zero is always a valid cold-start guess, and passing the previous solution
+  warm-starts the solve.
+
+## References
+
+[1] D. C. Rucker, B. A. Jones and R. J. Webster III, "A Geometrically Exact
+Model for Externally Loaded Concentric-Tube Continuum Robots," *IEEE
+Transactions on Robotics*, vol. 26, no. 5, pp. 769–780, Oct. 2010.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/fcpedrosa/Concentric-Tube-Robot/blob/main/LICENSE) file for details.
+This project is licensed under the [MIT License](LICENSE).
 
 ## Contact
 
-For any questions or inquiries, feel free to contact me:
-
-Filipe Pedrosa
-Email: fpedrosa@uwo.ca
-
-Please note that this project is a research-oriented implementation and comes with no warranty or support. Use it at your own risk.
+Filipe C. Pedrosa — [@fcpedrosa](https://github.com/fcpedrosa)

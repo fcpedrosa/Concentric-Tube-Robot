@@ -1,0 +1,102 @@
+/**
+@page model Mathematical model and numerical methods
+
+@section model_cosserat The Cosserat kinematic model
+
+The library implements the torsionally-compliant kinematic model of Rucker,
+Jones & Webster (IEEE T-RO 2010). Each pre-curved tube @e i has bending
+stiffness @f$EI_i@f$, torsional stiffness @f$GJ_i@f$ and pre-curvature
+@f$u^*_i = [u^*_{x,i}, u^*_{y,i}, 0]@f$ over its curved section. When the
+tubes are assembled concentrically, moment balance across the assembly gives
+the resultant curvature of tube 1 (the backbone),
+
+@f[
+u_{1,xy}(s) \;=\; \frac{m_{b,xy}(s) + \sum_i R_z(\theta_i)\,K_i\,u^*_i}
+                      {\sum_i EI_i},
+@f]
+
+with @f$\theta_i@f$ the twist angle of tube @e i relative to tube 1
+(@f$\theta_1 \equiv 0@f$) and @f$K_i = \mathrm{diag}(EI_i, EI_i, GJ_i)@f$.
+The state evolves along arc length @f$s@f$ as
+
+@f[
+\begin{aligned}
+u_{z,i}' &= \frac{EI_i}{GJ_i}\left(u_{x,i}\,u^*_{y,i} - u_{y,i}\,u^*_{x,i}\right), \\
+\theta_i' &= u_{z,i} - u_{z,1}, \\
+m_{b,xy}' &= -\left(\hat{u}_1\, m_b\right)_{xy} - \left(\hat{e}_3 R_1^{\!\top} f\right)_{xy}, \\
+r' &= R_1 e_3, \qquad h' = \tfrac12\, h \otimes [0,\, u_1],
+\end{aligned}
+@f]
+
+where @f$f@f$ is an optional distal point force (global frame) and
+@f$m_b = [m_{b,x},\, m_{b,y},\, \textstyle\sum_i GJ_i u_{z,i}]@f$.
+Material discontinuities (a tube's curved section starting, a tube ending)
+split the backbone into at most six segments with piecewise-constant
+parameters (ctr::Segment).
+
+@section model_bvp Forward kinematics: a shooting BVP
+
+The proximal twist angles follow from the actuation
+(@f$\theta_i(0) = \alpha_i - \beta_i u_{z,i}(0)@f$, re-referenced so
+@f$\theta_1 \equiv 0@f$), but five proximal values are unknown:
+@f$m_{b,x}(0), m_{b,y}(0)@f$ and the three torsional curvatures
+@f$u_{z,i}(0)@f$. They are determined by the distal boundary conditions
+
+@f[
+m_{b,xy}(L) = \left(R_1^{\!\top} w_m\right)_{xy}, \qquad
+GJ_1 u_{z,1}(L) = e_3^{\!\top} R_1^{\!\top} w_m, \qquad
+u_{z,i}(L_i) = 0 \;\; (i = 2, 3),
+@f]
+
+with @f$w_m@f$ an optional distal moment. The residual is
+**non-dimensionalized** (all rows in [1/m]) so the single tolerance and the
+5×5 finite-difference Jacobian are well-scaled; see @ref conventions.
+
+Root-finding strategies (selected via ctr::RootFindingMethod): a modified
+Newton-Raphson with Armijo line search (default; falls back to a
+zero-restarted Broyden, then dog-leg, then Levenberg-Marquardt on hard cold
+starts), Levenberg-Marquardt, Powell dog-leg, and Broyden. All linear
+algebra in the solvers is fixed-size and allocation-free.
+
+**Unloaded fast path:** with no distal load the transverse proximal moment
+vanishes identically, so the moment rows reduce to the trivial constraints
+@f$x_0 = x_1 = 0@f$ and the problem effectively has three unknowns; the BVP
+Jacobian then costs 3 integrations instead of 5.
+
+@section model_integration Integration
+
+The 15-dimensional state is integrated segment-by-segment with a classic
+fixed-step RK4 (default step 1 mm, CTR::setIntegrationStep). At 1 mm the tip
+is accurate to about @f$3\times10^{-11}@f$ m against a refined reference —
+seven orders of magnitude below a typical 0.5 mm position tolerance.
+
+Fixed-step (rather than error-controlled) integration is deliberate: the
+finite-difference Jacobians depend on the truncation error cancelling
+between nominal and perturbed shots, which requires a deterministic step
+sequence.
+
+@section model_ik Inverse kinematics
+
+CTR::solveIK performs damped-least-squares iteration in task space:
+
+1. **Exact total Jacobian.** @f$J = \partial r/\partial q -
+   (\partial r/\partial x)(\partial F/\partial x)^{-1}(\partial F/\partial q)@f$
+   by the implicit function theorem on the shooting residual
+   @f$F(x, q) = 0@f$ (CTR::kinematicJacobian) — differentiating the tip at
+   frozen shooting variables (as naive finite differencing does) yields a
+   systematically wrong Jacobian.
+2. **Cap-normalized metric.** β [m] and α [rad] are incommensurable, so the
+   step is computed in a joint space scaled by the per-iteration caps
+   (ctr::IKOptions), making the damping and the step limit fair across
+   joint types.
+3. **Levenberg-Marquardt step control.** Trial configurations are evaluated
+   through warm-started BVP solves; a failed solve or an error increase
+   rejects the step and raises the damping. The solver never continues from
+   an unconverged state, and on exit the robot is re-actuated at the
+   accepted configuration so object state always matches the returned
+   ctr::IKResult.
+
+The iteration is local: for targets far across the workspace, seed it
+closer (or multi-start) — ctr::IKResult reports the achieved error honestly,
+which makes external multi-start loops trivial to write.
+*/

@@ -87,6 +87,7 @@ struct FKResult
     std::size_t iterations{0UL};                       ///< Solver iterations used.
     double residual{0.0};                              ///< Final BVP residue norm (L∞).
 
+    /** @brief True iff the BVP converged. */
     [[nodiscard]] explicit operator bool() const noexcept { return status == SolverStatus::Converged; }
 };
 
@@ -121,6 +122,7 @@ struct IKResult
     SolverStatus lastBVPStatus{SolverStatus::NumericalError}; ///< Status of the last internal BVP solve.
     blaze::StaticVector<double, 6UL> q{};                    ///< Joint configuration at exit.
 
+    /** @brief True iff the tip reached the target within posTol. */
     [[nodiscard]] explicit operator bool() const noexcept { return converged; }
 };
 

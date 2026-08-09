@@ -53,9 +53,13 @@ class CTR
     CTR(std::array<Tube, NUM_TUBES> tubes, const blaze::StaticVector<double, 6UL> &q, double bvpTolerance,
         RootFindingMethod method = RootFindingMethod::ModifiedNewtonRaphson);
 
+    /** @brief Deep copy; the BVP solver is cloned by method. */
     CTR(const CTR &rhs);
+    /** @brief Deep copy assignment; the BVP solver is cloned by method. */
     CTR &operator=(const CTR &rhs);
+    /** @brief Move; a moved-from robot self-heals on its next use. */
     CTR(CTR &&rhs) noexcept;
+    /** @brief Move assignment; a moved-from robot self-heals on its next use. */
     CTR &operator=(CTR &&rhs) noexcept;
     ~CTR();
 
