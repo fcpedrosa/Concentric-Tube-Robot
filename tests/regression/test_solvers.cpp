@@ -172,6 +172,32 @@ TEST_CASE("Hard cold-start configuration: honest failure and Broyden escape", "[
     }
 }
 
+TEST_CASE("Unloaded fast path matches the full 5-unknown solve", "[regression][solvers]")
+{
+    // The unloaded fast path replaces the moment rows by the trivial
+    // constraints x0 = x1 = 0 (3 shooting unknowns effectively). Forcing the
+    // full 5-unknown path with a numerically negligible distal force must
+    // give the same physical solution.
+    for (const auto &q : configGrid())
+    {
+        CAPTURE(q[3UL], q[4UL], q[5UL]);
+
+        CTR fast = testing::makeReferenceRobot();
+        bvp_type gFast{};
+        REQUIRE(fast.actuate(q, gFast));
+
+        CTR full = testing::makeReferenceRobot();
+        full.setDistalForce({0.0, 0.0, 1.0e-30}); // disables the fast path, physically nil
+        bvp_type gFull{};
+        REQUIRE(full.actuate(q, gFull));
+
+        // Both formulations stop within the BVP tolerance of the same root;
+        // the residual stopping-point difference shows up at the ~1e-8 level.
+        CHECK(testing::maxAbsDiff(fast.tipPosition(), full.tipPosition()) < 5.0e-8);
+        CHECK(blaze::linfNorm(gFast - gFull) < 1.0e-5);
+    }
+}
+
 TEST_CASE("Re-actuating at the converged guess is a fixed point", "[regression][solvers]")
 {
     // Guards the line-search bookkeeping: the trajectory recorded by the solver

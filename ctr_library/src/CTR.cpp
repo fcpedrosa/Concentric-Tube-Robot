@@ -215,6 +215,15 @@ bvp_type CTR::residual(const bvp_type &initGuess, ShotMode mode)
     // component is a curvature [1/m] (moment rows scaled by 1/EI₁, the torsion
     // row by 1/GJ₁), so the single L∞ tolerance weighs all rows equally and the
     // BVP Jacobian is well-scaled.
+    //
+    // Unloaded fast path: with no distal load the transverse proximal moment
+    // vanishes exactly, so the moment rows are replaced by the equivalent
+    // trivial constraints x₀ = x₁ = 0 (same solution set, exactly linear —
+    // Newton satisfies them in one step and their Jacobian columns cost no
+    // integrations).
+    if (unloaded())
+        return {initGuess[0UL], initGuess[1UL], y_0[UZ_1], m_uzDistal[0UL], m_uzDistal[1UL]};
+
     blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R1;
     math::getSO3(blaze::subvector<QUAT_W, 4UL>(y_0), R1);
 
@@ -239,7 +248,18 @@ Mat<BVP_DIM, BVP_DIM> CTR::bvpJacobian(const bvp_type &initGuess, const bvp_type
         BVP_DIM, [&](std::size_t idx)
         { return (std::fabs(scaled[idx]) > incr_floor) ? scaled[idx] : std::copysign(incr_floor, initGuess[idx]); });
 
-    for (std::size_t iter = 0UL; iter < BVP_DIM; ++iter)
+    // Unloaded fast path: the moment rows of the residual are exactly x₀ and
+    // x₁, so their Jacobian columns are unit vectors — two of the five
+    // integrations vanish.
+    std::size_t start = 0UL;
+    if (unloaded())
+    {
+        blaze::column(jac_bvp, 0UL) = blaze::StaticVector<double, BVP_DIM>{1.0, 0.0, 0.0, 0.0, 0.0};
+        blaze::column(jac_bvp, 1UL) = blaze::StaticVector<double, BVP_DIM>{0.0, 1.0, 0.0, 0.0, 0.0};
+        start = 2UL;
+    }
+
+    for (std::size_t iter = start; iter < BVP_DIM; ++iter)
     {
         initGuessPerturbed[iter] += scaled[iter];
         residuePerturbed = residual(initGuessPerturbed);
@@ -265,10 +285,24 @@ Mat<3UL, 6UL> CTR::kinematicJacobian(const bvp_type &xStar)
     const blaze::StaticVector<double, 3UL> tip0 = tipPosition();
 
     // ∂F/∂x (5×5) and ∂r/∂x (3×5) — one lean shot per shooting variable.
+    // Unloaded fast path: the moment rows of F are exactly x₀/x₁, so their
+    // Fx columns are unit vectors and (because the corresponding rows of
+    // Fx⁻¹Fq are then zero) the matching Rx columns never contribute — both
+    // perturbation shots are skipped.
     Mat<BVP_DIM, BVP_DIM> Fx;
     Mat<3UL, BVP_DIM> Rx;
+    std::size_t startX = 0UL;
+    if (unloaded())
+    {
+        blaze::column(Fx, 0UL) = blaze::StaticVector<double, BVP_DIM>{1.0, 0.0, 0.0, 0.0, 0.0};
+        blaze::column(Fx, 1UL) = blaze::StaticVector<double, BVP_DIM>{0.0, 1.0, 0.0, 0.0, 0.0};
+        blaze::column(Rx, 0UL) = 0.0;
+        blaze::column(Rx, 1UL) = 0.0;
+        startX = 2UL;
+    }
+
     bvp_type xp(xStar);
-    for (std::size_t j = 0UL; j < BVP_DIM; ++j)
+    for (std::size_t j = startX; j < BVP_DIM; ++j)
     {
         xp[j] += dX;
         const bvp_type Fp = residual(xp);

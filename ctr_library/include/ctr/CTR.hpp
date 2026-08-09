@@ -205,6 +205,19 @@ class CTR
     /** Lazily recreates the solver if this object was moved from. */
     void ensureSolver();
 
+    /**
+     * True when no distal force/moment is applied. In that case the proximal
+     * transverse bending moment vanishes exactly (the free distal boundary
+     * condition propagates), so the shooting problem reduces from five
+     * unknowns to the three torsional curvatures: the moment rows of the
+     * residual become the trivial constraints x₀ = x₁ = 0 and their Jacobian
+     * columns are unit vectors — no integration needed for them.
+     */
+    [[nodiscard]] bool unloaded() const noexcept
+    {
+        return (blaze::sqrNorm(m_wf) == 0.0) && (blaze::sqrNorm(m_wm) == 0.0);
+    }
+
     /** Returns the linear actuation sub-vector [β₁, β₂, β₃] as a view into m_q. */
     [[nodiscard]] decltype(auto) betaView() const noexcept { return blaze::subvector<0UL, NUM_TUBES>(m_q); }
 
