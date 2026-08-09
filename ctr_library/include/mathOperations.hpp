@@ -1,7 +1,7 @@
 #pragma once
 
-// #define _USE_MATH_DEFINES
 #include <cmath>
+#include <numbers>
 #include <blaze/Math.h>
 #include <iostream>
 
@@ -28,7 +28,7 @@ namespace mathOp
 	 */
 	inline constexpr double deg2Rad(double degree)
 	{
-		constexpr double pi_180 = M_PI / 180.00;
+		constexpr double pi_180 = std::numbers::pi / 180.00;
 		return degree * pi_180;
 	}
 
@@ -40,7 +40,7 @@ namespace mathOp
 	 */
 	inline double congruentAngle(double angle)
 	{
-		constexpr double THREE_PI = 3.00 * M_PI;
+		constexpr double THREE_PI = 3.00 * std::numbers::pi;
 		return std::fmod(std::fabs(angle), THREE_PI) * (angle < 0.00 ? -1.00 : 1.00);
 	}
 
@@ -95,39 +95,29 @@ namespace mathOp
 	}
 
 	/**
-	 * @brief Computes pseudo-inverse of a MxN matrix, where max(M,N) = 6, via SVD decomposition.
+	 * @brief Computes the damped least-squares pseudo-inverse of a DynamicMatrix via SVD.
 	 *
-	 * @param M The input MxN Hybrid Blaze matrix M.
-	 * @return The corresponding pseudo-inverse of M as a NxM Blaze matrix.
+	 * Heavy implementation lives in mathOperations.cpp to avoid bloating every
+	 * translation unit that includes this header.
+	 *
+	 * @param M Input column-major DynamicMatrix.
+	 * @return  The pseudo-inverse as a column-major DynamicMatrix.
 	 */
-	inline blaze::HybridMatrix<double, 6UL, 6UL> pInv(const blaze::HybridMatrix<double, 6UL, 6UL> &M)
+	blaze::DynamicMatrix<double, blaze::columnMajor>
+	pInv(blaze::DynamicMatrix<double, blaze::columnMajor> M);
+
+	/**
+	 * @brief Thin wrapper: accepts any Blaze matrix type and delegates to the
+	 *        non-template overload above.
+	 *
+	 * @tparam MT  Blaze matrix type (deduced).
+	 * @param  M   The input matrix.
+	 * @return     The pseudo-inverse as a column-major DynamicMatrix.
+	 */
+	template <typename MT, bool SO>
+	inline auto pInv(const blaze::Matrix<MT, SO> &M)
 	{
-		// declaring the auxiliary matrices for pInv computation
-		blaze::HybridMatrix<double, 6UL, 6UL> U; // The matrix for the left singular vectors
-		blaze::HybridVector<double, 6UL> s;		 // The vector for the singular values
-		blaze::HybridMatrix<double, 6UL, 6UL> V; // The matrix for the right singular vectors
-
-		// SVD decomposition of the matrix M
-		try
-		{
-			blaze::svd(M, U, s, V);
-		}
-		catch (std::exception &e)
-		{
-			std::cerr << "Blaze SVD has failed: " << e.what() << std::endl;
-			std::cerr << M << std::endl;
-		}
-
-		// computing the pseudoinverse of M via SVD decomposition
-		blaze::DiagonalMatrix<blaze::HybridMatrix<double, 6UL, 6UL>> S_inv(s.size(), s.size());
-
-		// Creating a reference to the diagonal of matrix S
-		auto diag = blaze::diagonal(S_inv);
-		// applies a "damping factor" to the zero singular values of the matrix M
-		diag = blaze::map(s, [](double d)
-						  { return (d <= 1.00E-25) ? 0.00 : d / ((d * d) + 1.00E-25); }); // Damped least squares -- SVD pseudo inverse
-
-		return blaze::trans(U * S_inv * V);
+		return pInv(blaze::DynamicMatrix<double, blaze::columnMajor>(*M));
 	}
 
 	/**

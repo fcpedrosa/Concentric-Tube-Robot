@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-option(CTR_ENABLE_WARNINGS "Enable project-wide warnings" ON)
+option(CTR_ENABLE_WARNINGS "Enable project-wide warnings" OFF)
 option(CTR_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 option(CTR_ENABLE_SANITIZERS "Enable Address/Undefined sanitizers" OFF)
 

@@ -1,10 +1,11 @@
 # listing the CTR library source files into a variable
 set(CTR_LIB_SOURCES
     src/CTR.cpp
-    src/Observer.cpp
+    src/BVPSolver.cpp
     src/ODESystem.cpp
     src/Segment.cpp
     src/Tube.cpp
+    src/mathOperations.cpp
 )
 
 # Create the CTR static library

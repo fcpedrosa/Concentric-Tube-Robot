@@ -5,6 +5,8 @@
 #include <chrono>
 #include "CTR.hpp"
 
+using namespace ctr;
+
 int main()
 {
 	//  # # # # # # # # ---- Properties of Nitinol Tubes ---- # # # # # # # #
@@ -61,11 +63,11 @@ int main()
 	CTR CTR_robot(Tb, q_0, Tol, mathOp::rootFindingMethod::MODIFIED_NEWTON_RAPHSON);
 
 	// initial guess for the BVP
-	blaze::StaticVector<double, 5UL> initGuess;
+	bvp_type initGuess;
 
 	// ************************** Actuating the CTR and solving the corresponding BVP **************************
 	auto start = std::chrono::high_resolution_clock::now(); // Record start time
-	CTR_robot.actuate_CTR(initGuess, q_0);
+	[[maybe_unused]] bool fk_ok = CTR_robot.actuate_CTR(initGuess, q_0);
 	auto finish = std::chrono::high_resolution_clock::now(); // Record end time
 
 	double elapsed = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count();
@@ -77,7 +79,7 @@ int main()
 
 	// inverse kinematics
 	start = std::chrono::high_resolution_clock::now();
-	CTR_robot.posCTRL(initGuess, target, pos_tol);
+	[[maybe_unused]] bool ik_ok = CTR_robot.posCTRL(initGuess, target, pos_tol);
 	finish = std::chrono::high_resolution_clock::now();
 
 	elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();

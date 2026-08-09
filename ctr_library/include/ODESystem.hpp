@@ -1,44 +1,39 @@
 #pragma once
 
 #include <blaze/Math.h>
+#include "CTRTypes.hpp"
 #include "mathOperations.hpp"
 
-typedef blaze::StaticVector<double, 15UL> state_type;
+namespace ctr {
 
 /**
- * @brief Implements system of Ordinary Differential equations (ODEs) that model the kinematics of a three-tube CTR
+ * @brief Implements the system of Ordinary Differential Equations (ODEs) that model the
+ *        kinematics of a three-tube CTR.
+ *
+ * Designed as a callable functor compatible with Boost.Odeint integrators.
  */
 class ODESystem
 {
 private:
 	/**
 	 * @brief Pre-curvature of the tubes along the 'x' direction in the current segment.
-	 * The i-th entry of the vector corresponds to the pre-curvature in the x-direction for the i-th tube in the concentric arrangement.
 	 */
-	blaze::StaticVector<double, 3UL> m_u_ast_x;
+	blaze::StaticVector<double, NUM_TUBES> m_u_ast_x;
 
 	/**
 	 * @brief Pre-curvature of the tubes along the 'y' direction in the current segment.
-	 * The i-th entry of the vector corresponds to the pre-curvature in the y-direction for the i-th tube in the concentric arrangement.
 	 */
-	blaze::StaticVector<double, 3UL> m_u_ast_y;
+	blaze::StaticVector<double, NUM_TUBES> m_u_ast_y;
 
 	/**
-	 * @brief Bending stiffness of each of the tubes in the current segment.
-	 * If a tube is not present in the current segment, the corresponding entry will be zero.
+	 * @brief Bending stiffness of each tube in the current segment. Zero if the tube is absent.
 	 */
-	blaze::StaticVector<double, 3UL> m_EI;
+	blaze::StaticVector<double, NUM_TUBES> m_EI;
 
 	/**
-	 * @brief Torsional stiffness of each tube in the current segment.
-	 * If a tube is not present in the current segment, the corresponding entry will be zero.
+	 * @brief Torsional stiffness of each tube in the current segment. Zero if the tube is absent.
 	 */
-	blaze::StaticVector<double, 3UL> m_GJ;
-
-	/**
-	 * @brief A unit vector in the z-direction.
-	 */
-	blaze::StaticVector<double, 3UL> m_e3;
+	blaze::StaticVector<double, NUM_TUBES> m_GJ;
 
 	/**
 	 * @brief Point force acting at the distal end of the CTR.
@@ -46,77 +41,55 @@ private:
 	blaze::StaticVector<double, 3UL> m_f;
 
 public:
+	/** @brief Unit vector in the z-direction (constant). Exposed for use in boundary conditions. */
+	static constexpr blaze::StaticVector<double, 3UL> kE3{0.0, 0.0, 1.0};
 	/**
-	 * @brief Implements the default constructor for the ODESystem class
+	 * @brief Default constructor. Initialises all parameters to zero.
 	 */
 	ODESystem();
 
 	/**
-	 * @brief Implements the overloaded constructor for the ODESystem class.
+	 * @brief Overloaded constructor.
 	 *
-	 * @param u_ast_x A 3-dimensional static Blaze vector of the pre-curvature of the tubes along the 'x' direction in the present segment.
-	 * @param u_ast_y A 3-dimensional static Blaze vector of the pre-curvature of the tubes along the 'x' direction in the present segment.
-	 * @param EI A 3-dimensional static Blaze vector of bending stiffness of each one of the tubes in the present segment. If the i-th tube isn't present in the current segment, the i-th entry of EI_i will be zero.
-	 * @param GJ A 3-dimensional static Blaze vector of torsional stiffness of each one of the tubes in the present segment. If the i-th tube isn't present in the current segment, the i-th entry of GJ_i will be zero.
+	 * @param u_ast_x Pre-curvature along x for each tube in the current segment.
+	 * @param u_ast_y Pre-curvature along y for each tube in the current segment.
+	 * @param EI      Bending stiffness for each tube in the current segment.
+	 * @param GJ      Torsional stiffness for each tube in the current segment.
 	 */
-	ODESystem(const blaze::StaticVector<double, 3UL> &u_ast_x, const blaze::StaticVector<double, 3UL> &u_ast_y, const blaze::StaticVector<double, 3UL> &EI, const blaze::StaticVector<double, 3UL> &GJ);
+	ODESystem(const blaze::StaticVector<double, NUM_TUBES> &u_ast_x,
+			  const blaze::StaticVector<double, NUM_TUBES> &u_ast_y,
+			  const blaze::StaticVector<double, NUM_TUBES> &EI,
+			  const blaze::StaticVector<double, NUM_TUBES> &GJ);
+
+	ODESystem(const ODESystem &)            = default;
+	ODESystem(ODESystem &&) noexcept        = default;
+	~ODESystem()                            = default;
+	ODESystem &operator=(const ODESystem &) = default;
+	ODESystem &operator=(ODESystem &&) noexcept = default;
 
 	/**
-	 * @brief Implements the copy constructor for the ODESystem class.
+	 * @brief Functor implementing the ODE right-hand side for Boost.Odeint.
 	 *
-	 * @param rhs The source ODESystem object to copy from.
+	 * @param y    Current state vector at arc-length s.
+	 * @param dyds Output: spatial derivative of the state vector at arc-length s.
+	 * @param s    Arc-length (not used explicitly but required by Boost.Odeint interface).
 	 */
-	ODESystem(const ODESystem &rhs);
+	void operator()(const state_type &y, state_type &dyds, double s) noexcept;
 
 	/**
-	 * @brief Implements the move constructor for the ODESystem class.
+	 * @brief Updates all kinematic parameters before integrating a new segment.
 	 *
-	 * @param rhs The source ODESystem object to move from.
+	 * @param u_ast_x Pre-curvature along x for each tube in the new segment.
+	 * @param u_ast_y Pre-curvature along y for each tube in the new segment.
+	 * @param EI      Bending stiffness for each tube in the new segment.
+	 * @param GJ      Torsional stiffness for each tube in the new segment.
+	 * @param force   Distal-end point force in the global frame.
 	 */
-	ODESystem(ODESystem &&rhs) noexcept;
-
-	/**
-	 * @brief Destroys the ODESystem object.
-	 */
-	~ODESystem() = default;
-
-	/**
-	 * @brief Implements the copy assignment operator for the ODESystem class.
-	 *
-	 * @param rhs The source ODESystem object to copy from.
-	 * @return A reference to the assigned ODESystem object.
-	 */
-	ODESystem &operator=(const ODESystem &rhs);
-
-	/**
-	 * @brief Implements the move assignment operator for the ODESystem class.
-	 *
-	 * @param rhs The source ODESystem object to move from.
-	 * @return A reference to the assigned ODESystem object.
-	 */
-	ODESystem &operator=(ODESystem &&rhs) noexcept;
-
-	/**
-	 * @brief Functor that overloads the constructor's signature and implements the system of ODEs governing a three-tube CTR
-	 *
-	 * @param y A 15-dimensional static Blaze vector containing the current values of the state vector at the arc-length 's' within the current segment.
-	 * @param dyds A 15-dimensional static Blaze vector to be computed by the functor. Once the functor is executed, 'dyds' corresponds to the spatial derivative of the state vector at the arc-length 's'.
-	 * @param s The nonnegative scalar corresponding to the arc-length along the CTR backbone at which the computations are taking place
-	 */
-	void operator()(const state_type &y, state_type &dyds, const double s) noexcept;
-
-	/**
-	 * @brief Implements a setter method for updating the kinematic parameters before computation of the ODEs at each arc-length 's'
-	 *
-	 * @param u_ast_x A 3-dimensional static Blaze vector of the pre-curvature of the tubes along the 'x' direction in the present segment.
-	 * @param u_ast_y A 3-dimensional static Blaze vector of the pre-curvature of the tubes along the 'x' direction in the present segment.
-	 * @param EI A 3-dimensional static Blaze vector of bending stiffness of each one of the tubes in the present segment. If the i-th tube isn't present in the current segment, the i-th entry of EI_i will be zero.
-	 * @param GJ A 3-dimensional static Blaze vector of torsional stiffness of each one of the tubes in the present segment. If the i-th tube isn't present in the current segment, the i-th entry of GJ_i will be zero.
-	 * @param force A 3-dimensional static Blaze vector containing the point force acting at the distal-end of the CTR.
-	 */
-	void setEquationParameters(const blaze::StaticVector<double, 3UL> &u_ast_x,
-							   const blaze::StaticVector<double, 3UL> &u_ast_y,
-							   const blaze::StaticVector<double, 3UL> &EI,
-							   const blaze::StaticVector<double, 3UL> &GJ,
-							   const blaze::StaticVector<double, 3UL> &force);
+	void setEquationParameters(const blaze::StaticVector<double, NUM_TUBES> &u_ast_x,
+							   const blaze::StaticVector<double, NUM_TUBES> &u_ast_y,
+							   const blaze::StaticVector<double, NUM_TUBES> &EI,
+							   const blaze::StaticVector<double, NUM_TUBES> &GJ,
+							   const blaze::StaticVector<double, 3UL>       &force);
 };
+
+} // namespace ctr

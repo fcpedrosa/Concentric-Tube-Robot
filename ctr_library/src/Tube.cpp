@@ -1,228 +1,127 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
-// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
 #include "Tube.hpp"
+#include <cassert>
 
-// default class constructor
+namespace ctr {
+
+// ─── Constructors ─────────────────────────────────────────────────────────────
+
 Tube::Tube()
+    : m_OD(0.0), m_ID(0.0), m_E(0.0), m_G(0.0),
+      m_ls(0.0), m_lc(0.0), m_u_ast(0.0)
+{}
+
+Tube::Tube(double OD, double ID, double E, double G, double ls, double lc,
+           const blaze::StaticVector<double, 3UL> &u_ast)
+    : m_OD(OD), m_ID(ID), m_E(E), m_G(G), m_ls(ls), m_lc(lc), m_u_ast(u_ast)
 {
-	m_OD = 0.00;
-	m_ID = 0.00;
-	m_E = 0.00;
-	m_I = 0.00;
-	m_G = 0.00;
-	m_J = 0.00;
-	m_K = 0.00;
-	m_ls = 0.00;
-	m_lc = 0.00;
-	m_u_ast = 0.00;
+    assert(OD > ID   && "Tube: outer diameter must exceed inner diameter");
+    assert(ID > 0.0  && "Tube: inner diameter must be positive");
+    assert(E  > 0.0  && "Tube: Young's modulus must be positive");
+    assert(G  > 0.0  && "Tube: shear modulus must be positive");
+    assert((ls + lc) > 0.0 && "Tube: total tube length must be positive");
 }
 
-// overloaded class constructor
-Tube::Tube(double OD, double ID, double E, double G, double ls, double lc, const blaze::StaticVector<double, 3UL> &u_ast) : m_OD(OD), m_ID(ID), m_E(E), m_G(G), m_ls(ls), m_lc(lc), m_u_ast(u_ast)
-{
-	const double od2 = OD * OD;
-	const double id2 = ID * ID;
-	const double areaDiff = od2 * od2 - id2 * id2;
+// ─── Getters ─────────────────────────────────────────────────────────────────
 
-	m_I = pi_64 * areaDiff;
-	m_J = pi_32 * areaDiff;
-	m_K(0UL, 0UL) = m_K(1UL, 1UL) = m_E * m_I;
-	m_K(2UL, 2UL) = m_G * m_J;
+TubeParams Tube::getParameters() const noexcept
+{
+    return {m_OD, m_ID, m_E, m_G, m_ls, m_lc, m_u_ast};
 }
 
-// copy constructor
-Tube::Tube(const Tube &rhs) : m_OD(rhs.m_OD), m_ID(rhs.m_ID), m_E(rhs.m_E), m_I(rhs.m_I), m_G(rhs.m_G),
-							  m_J(rhs.m_J), m_K(rhs.m_K), m_ls(rhs.m_ls), m_lc(rhs.m_lc), m_u_ast(rhs.m_u_ast) {}
-
-// move constructor
-Tube::Tube(Tube &&rhs) noexcept
-{
-	// handling self assignment
-	if (this != &rhs)
-	{
-		this->m_OD = rhs.m_OD;
-		this->m_ID = rhs.m_ID;
-		this->m_E = rhs.m_E;
-		this->m_I = rhs.m_I;
-		this->m_G = rhs.m_G;
-		this->m_J = rhs.m_J;
-		this->m_K = std::move(rhs.m_K);
-		this->m_ls = rhs.m_ls;
-		this->m_lc = rhs.m_lc;
-		this->m_u_ast = std::move(rhs.m_u_ast);
-	}
-}
-
-// Copy assignment operator
-Tube &Tube::operator=(const Tube &rhs)
-{
-	// handling self assignment
-	if (this != &rhs)
-	{
-		this->m_OD = rhs.m_OD;
-		this->m_ID = rhs.m_ID;
-		this->m_E = rhs.m_E;
-		this->m_I = rhs.m_I;
-		this->m_G = rhs.m_G;
-		this->m_J = rhs.m_J;
-		this->m_K = rhs.m_K;
-		this->m_ls = rhs.m_ls;
-		this->m_lc = rhs.m_lc;
-		this->m_u_ast = rhs.m_u_ast;
-	}
-
-	return *this;
-}
-
-// move assignment operator
-Tube &Tube::operator=(Tube &&rhs) noexcept
-{
-	// handling self assignment
-	if (this != &rhs)
-	{
-		this->m_OD = rhs.m_OD;
-		this->m_ID = rhs.m_ID;
-		this->m_E = rhs.m_E;
-		this->m_I = rhs.m_I;
-		this->m_G = rhs.m_G;
-		this->m_J = rhs.m_J;
-		this->m_K = std::move(rhs.m_K);
-		this->m_ls = rhs.m_ls;
-		this->m_lc = rhs.m_lc;
-		this->m_u_ast = std::move(rhs.m_u_ast);
-	}
-
-	return *this;
-}
-
-// // get method for retrieving the tube parameters
-std::tuple<double, double, double, double, double, blaze::StaticVector<double, 3UL>> Tube::getTubeParameters() const
-{
-	return std::make_tuple(this->m_OD, this->m_ID, this->m_E, this->m_ls, this->m_lc, this->m_u_ast);
-}
-
-// set method for updating the Young's modulus
-void Tube::setYoungModulus(double E)
-{
-	this->m_E = E;
-	this->m_K(0UL, 0UL) = m_K(1UL, 1UL) = this->m_E * this->m_I;
-}
-
-// set method for updating the Shear modulus
-void Tube::setShearModulus(double G)
-{
-	this->m_G = G;
-	this->m_K(2UL, 2UL) = this->m_G * this->m_J;
-}
-
-// get method for retrieving the tube overall length
 double Tube::getTubeLength() const noexcept
 {
-	return this->m_ls + this->m_lc;
+    return m_ls + m_lc;
 }
 
-// get method for retrieving the tube precurvature vector
-blaze::StaticVector<double, 3UL> Tube::get_u_ast() const noexcept
-{
-	return this->m_u_ast;
-}
-
-// get method for retrieving the precurvature along x or y directions
-double Tube::get_u_ast(size_t id) const noexcept
-{
-	switch (id)
-	{
-	case 1:
-		return this->m_u_ast[0UL];
-		break;
-	case 2:
-		return this->m_u_ast[1UL];
-		break;
-	default:
-		return 0.00;
-	}
-}
-
-// set method for updating the tube precurvature vector
-void Tube::set_u_ast(const blaze::StaticVector<double, 3UL> &u_ast)
-{
-	this->m_u_ast = u_ast;
-}
-
-// set method for updadting the tube's precurvature along x or y directions
-void Tube::set_u_ast(const size_t id, const double u)
-{
-	switch (id)
-	{
-	case 1:
-		this->m_u_ast[0UL] = u;
-		break;
-	case 2:
-		this->m_u_ast[1UL] = u;
-		break;
-	default:
-		std::cerr << "Invalid entry. Cannot update tube's precurvature!";
-	}
-}
-
-// get method for retrieving the length of the straight section
 double Tube::getStraightLen() const noexcept
 {
-	return this->m_ls;
+    return m_ls;
 }
 
-// get method for retrieving the length of the tube curved section
 double Tube::getCurvLen() const noexcept
 {
-	return this->m_lc;
+    return m_lc;
 }
 
-// set method for updating the length of the straight section (if negative length is provided, the length will be automatically set to zero)
-void Tube::setStraightLen(double ls)
+blaze::StaticVector<double, 3UL> Tube::get_u_ast() const noexcept
 {
-	this->m_ls = (ls > 0.00) ? ls : 0.00;
+    return m_u_ast;
 }
 
-// set method for updating the legnth of the curved section (if negative length is provided, the length will be automatically set to zero)
-void Tube::setCurvLen(double lc)
+double Tube::get_u_ast(std::size_t id) const noexcept
 {
-	this->m_lc = (lc > 0.00) ? lc : 0.00;
+    assert(id <= 1UL && "get_u_ast: id must be 0 (x) or 1 (y)");
+    return m_u_ast[id];
 }
 
-// get method for retrieving the stiffness matrix
-blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> Tube::getK_Matrix() const noexcept
+double Tube::getK(Stiffness s) const noexcept
 {
-	return this->m_K;
+    const double csf = crossSectionFactor();
+    switch (s)
+    {
+    case Stiffness::Bending: return m_E * pi_64 * csf;
+    case Stiffness::Torsion: return m_G * pi_32 * csf;
+    }
+    return 0.0; // unreachable — satisfies compiler
 }
 
-// get method for retrieving the ith entry of the main diagonal
-double Tube::getK(int i) const noexcept
+blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>>
+Tube::getK_Matrix() const noexcept
 {
-	switch (i)
-	{
-	case 1:
-		return this->m_K(0UL, 0UL);
-		break;
-	case 2:
-		return this->m_K(1UL, 1UL);
-		break;
-	case 3:
-		return this->m_K(2UL, 2UL);
-		break;
-	default:
-		return 0.00;
-	}
+    blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K;
+    const double EI = getK(Stiffness::Bending);
+    const double GJ = getK(Stiffness::Torsion);
+    K(0UL, 0UL) = K(1UL, 1UL) = EI;
+    K(2UL, 2UL)                = GJ;
+    return K;
 }
 
-// method for setting the bending & torsional stiffness
-void Tube::setK(const double EI, const double GJ)
+// ─── Setters ─────────────────────────────────────────────────────────────────
+
+void Tube::setYoungModulus(double E) noexcept
 {
-	this->m_K(0UL, 0UL) = this->m_K(1UL, 1UL) = EI;
-	this->m_K(2UL, 2UL) = GJ;
+    m_E = E;
+    // Stiffness is computed on demand — no cache to synchronise.
 }
 
-// method for setting the bending stiffness in the stiffness matrix
-void Tube::setBendingK(const double EI)
+void Tube::setShearModulus(double G) noexcept
 {
-	this->m_K(0UL, 0UL) = this->m_K(1UL, 1UL) = EI;
+    m_G = G;
 }
+
+void Tube::setK(double EI, double GJ) noexcept
+{
+    // Back-compute E and G from the given stiffness values.
+    const double csf = crossSectionFactor();
+    if (const double I = pi_64 * csf; I > 0.0) m_E = EI / I;
+    if (const double J = pi_32 * csf; J > 0.0) m_G = GJ / J;
+}
+
+void Tube::setBendingK(double EI) noexcept
+{
+    if (const double I = pi_64 * crossSectionFactor(); I > 0.0)
+        m_E = EI / I;
+}
+
+void Tube::set_u_ast(const blaze::StaticVector<double, 3UL> &u_ast)
+{
+    m_u_ast = u_ast;
+}
+
+void Tube::set_u_ast(std::size_t id, double u)
+{
+    assert(id <= 1UL && "set_u_ast: id must be 0 (x) or 1 (y)");
+    m_u_ast[id] = u;
+}
+
+void Tube::setStraightLen(double ls) noexcept
+{
+    m_ls = (ls > 0.0) ? ls : 0.0;
+}
+
+void Tube::setCurvLen(double lc) noexcept
+{
+    m_lc = (lc > 0.0) ? lc : 0.0;
+}
+
+} // namespace ctr
