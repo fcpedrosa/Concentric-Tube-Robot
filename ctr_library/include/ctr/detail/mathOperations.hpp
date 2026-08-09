@@ -41,31 +41,6 @@ inline double wrapToPi(double angle) noexcept
 }
 
 /**
- * @brief Computes the damped least-squares pseudo-inverse of a DynamicMatrix via SVD.
- *
- * Heavy implementation lives in mathOperations.cpp to avoid bloating every
- * translation unit that includes this header.
- *
- * @param M Input column-major DynamicMatrix.
- * @return  The pseudo-inverse as a column-major DynamicMatrix.
- */
-blaze::DynamicMatrix<double, blaze::columnMajor> pInv(blaze::DynamicMatrix<double, blaze::columnMajor> M);
-
-/**
- * @brief Thin wrapper: accepts any Blaze matrix type and delegates to the
- *        non-template overload above.
- *
- * @tparam MT  Blaze matrix type (deduced).
- * @tparam SO  Storage order (deduced).
- * @param  M   The input matrix.
- * @return     The pseudo-inverse as a column-major DynamicMatrix.
- */
-template <typename MT, bool SO> inline auto pInv(const blaze::Matrix<MT, SO> &M)
-{
-    return pInv(blaze::DynamicMatrix<double, blaze::columnMajor>(*M));
-}
-
-/**
  * @brief Converts an Euler-angle representation of 3D rotations into the corresponding quaternion.
  * The quaternion is passed by reference and is modified by the function.
  *
@@ -144,31 +119,6 @@ inline blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> hatOperator(con
 {
     return blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor>{
         {0.00, -v[2UL], v[1UL]}, {v[2UL], 0.00, -v[0UL]}, {-v[1UL], v[0UL], 0.00}};
-}
-
-/**
- * @brief Computes the pre-multiplication of a 3×3 matrix by the hat operator of a
- * 3-dimensional vector, i.e. the operation \hat{v} * M, without forming \hat{v}.
- *
- * Accepts any dense-matrix expression (e.g. blaze::trans of a rotation matrix)
- * so callers do not materialize a temporary.
- *
- * @param v The input 3-dimensional vector.
- * @param M The 3×3 matrix expression to be pre-multiplied.
- * @return The 3×3 matrix result of the operation.
- */
-template <typename MT, bool SO>
-inline blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor>
-hatPreMultiply(const blaze::StaticVector<double, 3UL> &v, const blaze::Matrix<MT, SO> &M_)
-{
-    const auto &M = *M_;
-    return blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor>{
-        {-M(1UL, 0UL) * v[2UL] + M(2UL, 0UL) * v[1UL], -M(1UL, 1UL) * v[2UL] + M(2UL, 1UL) * v[1UL],
-         -M(1UL, 2UL) * v[2UL] + M(2UL, 2UL) * v[1UL]},
-        {M(0UL, 0UL) * v[2UL] - M(2UL, 0UL) * v[0UL], M(0UL, 1UL) * v[2UL] - M(2UL, 1UL) * v[0UL],
-         M(0UL, 2UL) * v[2UL] - M(2UL, 2UL) * v[0UL]},
-        {-M(0UL, 0UL) * v[1UL] + M(1UL, 0UL) * v[0UL], -M(0UL, 1UL) * v[1UL] + M(1UL, 1UL) * v[0UL],
-         -M(0UL, 2UL) * v[1UL] + M(1UL, 2UL) * v[0UL]}};
 }
 
 /**

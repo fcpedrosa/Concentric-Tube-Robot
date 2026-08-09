@@ -4,7 +4,6 @@ add_library(ctr_kinematics STATIC
     src/ODESystem.cpp
     src/Segment.cpp
     src/Tube.cpp
-    src/mathOperations.cpp
 )
 add_library(ctr::kinematics ALIAS ctr_kinematics)
 
@@ -30,7 +29,6 @@ target_link_libraries(ctr_kinematics
         Boost::headers
         blaze::blaze
     PRIVATE
-        LAPACK::LAPACK # TEMPORARY: only mathOp::pInv (blaze::svd) needs this
         "$<BUILD_LOCAL_INTERFACE:ctr_project_options>"
         "$<BUILD_LOCAL_INTERFACE:ctr_sanitizers>")
 

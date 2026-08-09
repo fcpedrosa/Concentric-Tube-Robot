@@ -91,6 +91,22 @@ struct FKResult
 };
 
 /**
+ * @brief Tuning knobs for the inverse-kinematics solver.
+ *
+ * The defaults are appropriate for tabletop-scale CTRs (backbone lengths of
+ * tens of centimeters); they bound the per-iteration step so the damped
+ * least-squares iteration stays inside the region where its linear model and
+ * the warm-started BVP solve are reliable.
+ */
+struct IKOptions
+{
+    std::size_t maxIterations = 50UL; ///< Iteration budget.
+    double maxBetaStep = 2.0e-3;      ///< Per-iteration cap on each |Δβ| [m].
+    double maxAlphaStep = 0.35;       ///< Per-iteration cap on each |Δα| [rad].
+    double dampingSeed = 1.0e-3;      ///< Initial LM damping relative to max(diag(JJᵀ)).
+};
+
+/**
  * @brief Outcome of an inverse-kinematics solve.
  *
  * Contextually convertible to bool: true iff the tip reached the target

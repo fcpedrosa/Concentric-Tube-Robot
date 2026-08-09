@@ -30,49 +30,6 @@ namespace
 /// that has not converged by 50 will not converge (caps worst-case cost).
 inline constexpr std::size_t kMaxSolverIterations = 50UL;
 
-/**
- * @brief Inverts a BVP Jacobian.
- *
- * Uses Blaze's closed-form 5×5 inversion (allocation- and LAPACK-free). Near
- * singularity it falls back to the damped pseudo-inverse (JᵀJ + μI)⁻¹Jᵀ with
- * μ scaled to the Jacobian's magnitude; if even that is non-finite, returns a
- * zero matrix (turning the caller's step into a detectable stall rather than
- * a NaN cascade).
- */
-[[nodiscard]] Mat<BVP_DIM, BVP_DIM> invertJacobian(const Mat<BVP_DIM, BVP_DIM> &J)
-{
-    try
-    {
-        Mat<BVP_DIM, BVP_DIM> Jinv(J);
-        blaze::invert(Jinv);
-        if (blaze::isfinite(Jinv))
-            return Jinv;
-    }
-    catch (const std::exception &)
-    {
-        // fall through to the damped pseudo-inverse
-    }
-
-    Mat<BVP_DIM, BVP_DIM> A = blaze::trans(J) * J;
-    double mu = 1.0e-10 * blaze::max(blaze::abs(blaze::diagonal(A)));
-    if (!(mu > 0.0) || !std::isfinite(mu))
-        mu = 1.0e-10;
-    for (std::size_t i = 0UL; i < BVP_DIM; ++i)
-        A(i, i) += mu;
-
-    try
-    {
-        blaze::invert(A);
-        Mat<BVP_DIM, BVP_DIM> pinv = A * blaze::trans(J);
-        if (blaze::isfinite(pinv))
-            return pinv;
-    }
-    catch (const std::exception &)
-    {
-    }
-    return Mat<BVP_DIM, BVP_DIM>(0.0);
-}
-
 } // namespace
 
 // ─── Powell Dog-Leg ──────────────────────────────────────────────────────────
@@ -103,7 +60,7 @@ FKResult PowellDogLegSolver::solve(bvp_type &initGuess, ShootingProblem &problem
 
         alpha = blaze::sqrNorm(g) / blaze::sqrNorm(J * g);
         h_sd = -alpha * g;
-        h_gn = -(invertJacobian(J) * f);
+        h_gn = -(detail::invertJacobian(J) * f);
 
         if (blaze::norm(h_gn) <= delta)
             h_dl = h_gn;
@@ -225,7 +182,7 @@ FKResult BroydenSolver::solve(bvp_type &initGuess, ShootingProblem &problem)
 
     X = initGuess;
     F = problem.residual(X);
-    JacInv = invertJacobian(problem.jacobian(X, F));
+    JacInv = detail::invertJacobian(problem.jacobian(X, F));
     bool found = (blaze::linfNorm(F) <= problem.tolerance());
 
     std::size_t k = 0UL;
@@ -252,13 +209,13 @@ FKResult BroydenSolver::solve(bvp_type &initGuess, ShootingProblem &problem)
             X *= 0.75;
             sanitizeBVPGuess(X);
             F = problem.residual(X);
-            JacInv = invertJacobian(problem.jacobian(X, F));
+            JacInv = detail::invertJacobian(problem.jacobian(X, F));
         }
 
         if (k % 10UL == 0UL)
         {
             // Periodic exact refresh keeps the update from drifting.
-            JacInv = invertJacobian(problem.jacobian(X, F));
+            JacInv = detail::invertJacobian(problem.jacobian(X, F));
         }
         else
         {
@@ -315,7 +272,7 @@ FKResult ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, ShootingProblem
                 break;
         }
 
-        D_inv = invertJacobian(D);
+        D_inv = detail::invertJacobian(D);
         d = D_inv * f;
         gamma = 1.0 / (blaze::norm(D_inv) * blaze::norm(D));
         h_0 = blaze::sqrNorm(f);

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <iostream>
 #include "ctr/CTR.hpp"
+#include "ctr/detail/mathOperations.hpp"
 
 int main()
 {
@@ -59,7 +60,19 @@ int main()
               << "Tip position [m]: " << blaze::trans(robot.tipPosition()) << std::endl;
 
     // ************************ Inverse kinematics ************************
-    const blaze::StaticVector<double, 3UL> target = {-0.053210, 0.043606, 0.179527};
+    // Build a verified-reachable target: run FK at a reference configuration,
+    // take its tip position, then return to the home configuration and ask IK
+    // to steer the tip back to that target.
+    // (The historical demo target {-0.0532, 0.0436, 0.1795} lies OUTSIDE this
+    // tube set's reachable workspace — multi-start IK bottoms out ~26 mm away.
+    // The legacy solver claimed success on it because its return value
+    // reported BVP convergence, not target attainment.)
+    blaze::StaticVector<double, 6UL> q_ref = q_0;
+    q_ref[4UL] = math::deg2Rad(60.0);
+    q_ref[5UL] = math::deg2Rad(-45.0);
+    std::ignore = robot.actuate(q_ref, initGuess);
+    const blaze::StaticVector<double, 3UL> target = robot.tipPosition();
+    std::ignore = robot.actuate(q_0, initGuess); // back to home
 
     start = std::chrono::high_resolution_clock::now();
     const IKResult ik = robot.solveIK(target, pos_tol, initGuess);

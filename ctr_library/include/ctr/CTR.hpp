@@ -74,25 +74,37 @@ class CTR
     /**
      * @brief Inverse kinematics: steers the tip to a Cartesian target position.
      *
+     * Damped-least-squares iteration in task space with Levenberg-Marquardt
+     * step control, using the exact total kinematic Jacobian (see
+     * kinematicJacobian). Every trial configuration is evaluated through a
+     * warm-started BVP solve; a failed solve rejects the step rather than
+     * corrupting the state.
+     *
      * @param target    Desired 3D tip position [m], global frame.
      * @param posTol    Position tolerance [m]; success means ||tip − target|| ≤ posTol.
      * @param initGuess Proximal boundary-condition guess (updated in place; warm-started across calls).
+     * @param opts      Solver tuning knobs (sensible defaults).
      * @return IKResult; IKResult::converged reports target attainment (not merely BVP convergence).
      */
-    [[nodiscard]] IKResult solveIK(const blaze::StaticVector<double, 3UL> &target, double posTol,
-                                   bvp_type &initGuess);
+    [[nodiscard]] IKResult solveIK(const blaze::StaticVector<double, 3UL> &target, double posTol, bvp_type &initGuess,
+                                   const IKOptions &opts = {});
 
     /**
-     * @brief Finite-difference kinematic Jacobian ∂tip/∂q (3×6).
+     * @brief Total kinematic Jacobian dtip/dq (3×6) on the BVP equilibrium manifold.
      *
-     * Exposed for research use; solveIK computes what it needs internally.
+     * Computed by finite differences through the implicit function theorem:
+     *   J = ∂r/∂q − (∂r/∂x)(∂F/∂x)⁻¹(∂F/∂q),
+     * where F(x, q) is the shooting residual and x the shooting variables.
+     * The second term — how the BVP solution itself shifts with q — is
+     * essential: differentiating the tip at FIXED shooting variables yields a
+     * systematically wrong Jacobian.
      *
-     * @param initGuess Current proximal boundary-condition guess.
-     * @param tipPos    Current tip position [m].
-     * @return 3×6 kinematic Jacobian.
+     * @pre The robot has been actuated at the current configuration and
+     *      xStar is the (near-)converged shooting vector for it.
+     * @param xStar Converged shooting vector at the current configuration.
+     * @return 3×6 total kinematic Jacobian (columns: β₁..β₃ [m], α₁..α₃ [rad]).
      */
-    [[nodiscard]] Mat<3UL, 6UL> kinematicJacobian(const bvp_type &initGuess,
-                                                  const blaze::StaticVector<double, 3UL> &tipPos);
+    [[nodiscard]] Mat<3UL, 6UL> kinematicJacobian(const bvp_type &xStar);
 
     // ─── Shape access (all meters) ───────────────────────────────────────────
 

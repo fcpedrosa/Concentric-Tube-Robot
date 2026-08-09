@@ -43,11 +43,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 find_package(Boost 1.74 REQUIRED CONFIG)
 find_package(blaze REQUIRED CONFIG)
 
-# TEMPORARY: mathOp::pInv computes an SVD via blaze::svd, which calls LAPACK
-# (dgesdd) unconditionally. pInv is scheduled for removal (replaced by
-# fixed-size direct solves); drop this dependency together with it.
-find_package(LAPACK REQUIRED)
-
 if(CTR_ENABLE_LTO)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT ctr_ipo_ok OUTPUT ctr_ipo_msg)

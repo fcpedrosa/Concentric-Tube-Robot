@@ -45,6 +45,49 @@ inline void sanitizeBVPGuess(bvp_type &x) noexcept
     }
 }
 
+/**
+ * @brief Inverts a BVP Jacobian.
+ *
+ * Uses Blaze's closed-form 5×5 inversion (allocation- and LAPACK-free). Near
+ * singularity it falls back to the damped pseudo-inverse (JᵀJ + μI)⁻¹Jᵀ with
+ * μ scaled to the Jacobian's magnitude; if even that is non-finite, returns a
+ * zero matrix (turning the caller's step into a detectable stall rather than
+ * a NaN cascade).
+ */
+[[nodiscard]] inline Mat<BVP_DIM, BVP_DIM> invertJacobian(const Mat<BVP_DIM, BVP_DIM> &J)
+{
+    try
+    {
+        Mat<BVP_DIM, BVP_DIM> Jinv(J);
+        blaze::invert(Jinv);
+        if (blaze::isfinite(Jinv))
+            return Jinv;
+    }
+    catch (const std::exception &)
+    {
+        // fall through to the damped pseudo-inverse
+    }
+
+    Mat<BVP_DIM, BVP_DIM> A = blaze::trans(J) * J;
+    double mu = 1.0e-10 * blaze::max(blaze::abs(blaze::diagonal(A)));
+    if (!(mu > 0.0) || !std::isfinite(mu))
+        mu = 1.0e-10;
+    for (std::size_t i = 0UL; i < BVP_DIM; ++i)
+        A(i, i) += mu;
+
+    try
+    {
+        blaze::invert(A);
+        Mat<BVP_DIM, BVP_DIM> pinv = A * blaze::trans(J);
+        if (blaze::isfinite(pinv))
+            return pinv;
+    }
+    catch (const std::exception &)
+    {
+    }
+    return Mat<BVP_DIM, BVP_DIM>(0.0);
+}
+
 } // namespace detail
 
 // ─── Shooting-problem facade ───────────────────────────────────────────────────

@@ -250,25 +250,38 @@ Mat<BVP_DIM, BVP_DIM> CTR::bvpJacobian(const bvp_type &initGuess, const bvp_type
     return jac_bvp;
 }
 
-Mat<3UL, 6UL> CTR::kinematicJacobian(const bvp_type &initGuess, const blaze::StaticVector<double, 3UL> &tipPos)
+Mat<3UL, 6UL> CTR::kinematicJacobian(const bvp_type &xStar)
 {
-    Mat<3UL, 6UL> jac;
+    // Finite-difference steps. Small steps are viable ONLY because integration
+    // is deterministic fixed-step: truncation error cancels between nominal
+    // and perturbed shots (β-perturbations move segment boundaries, adding
+    // O(ds⁴) ≈ 1e-12 discretization jitter — far below the step sizes below).
+    constexpr double dX = 1.0e-6;     // shooting variables [1/m]
+    constexpr double dBeta = 1.0e-5;  // [m]
+    constexpr double dAlpha = 1.0e-4; // [rad]
+
+    // Base shot at (q, x*): residual F₀ and tip r₀.
+    const bvp_type F0 = residual(xStar);
+    const blaze::StaticVector<double, 3UL> tip0 = tipPosition();
+
+    // ∂F/∂x (5×5) and ∂r/∂x (3×5) — one lean shot per shooting variable.
+    Mat<BVP_DIM, BVP_DIM> Fx;
+    Mat<3UL, BVP_DIM> Rx;
+    bvp_type xp(xStar);
+    for (std::size_t j = 0UL; j < BVP_DIM; ++j)
+    {
+        xp[j] += dX;
+        const bvp_type Fp = residual(xp);
+        blaze::column(Fx, j) = (Fp - F0) / dX;
+        blaze::column(Rx, j) = (tipPosition() - tip0) / dX;
+        xp[j] = xStar[j];
+    }
+
+    // ∂F/∂q (5×6) and ∂r/∂q (3×6) — one lean shot per joint, at FIXED x*.
+    Mat<BVP_DIM, 6UL> Fq;
+    Mat<3UL, 6UL> Rq;
 
     const blaze::StaticVector<double, 6UL> q_original(m_q);
-
-    constexpr double incr_scale = 1.0E-3;
-    constexpr double incr_floor = 5.0E-4;
-
-    blaze::StaticVector<double, 6UL> q_scaled(m_q);
-    q_scaled *= incr_scale;
-    q_scaled = blaze::generate(6UL,
-                               [&](std::size_t idx)
-                               {
-                                   return (std::fabs(q_scaled[idx]) > incr_floor)
-                                              ? q_scaled[idx]
-                                              : std::copysign(incr_floor, q_original[idx]);
-                               });
-
     // RAII guard: restores m_q and m_segment on any exit path (normal or exception).
     auto doRestore = [&]() noexcept
     {
@@ -281,22 +294,29 @@ Mat<3UL, 6UL> CTR::kinematicJacobian(const bvp_type &initGuess, const blaze::Sta
         ~ScopeExit() noexcept { fn(); }
     } guard{doRestore};
 
-    blaze::StaticVector<double, 6UL> q_perturbed(m_q);
-    for (std::size_t iter = 0UL; iter <= 5UL; ++iter)
+    for (std::size_t i = 0UL; i < 6UL; ++i)
     {
-        q_perturbed[iter] += q_scaled[iter];
-        m_q = q_perturbed;
+        const double step = (i < NUM_TUBES) ? dBeta : dAlpha;
+        m_q[i] = q_original[i] + step;
 
-        // Angular DOFs (iter >= NUM_TUBES) do not alter segment transition points.
-        if (iter < NUM_TUBES)
+        // Angular DOFs do not alter segment transition points — but the FIRST
+        // angular iteration (i == NUM_TUBES) must still recalculate once to
+        // clear the β₃ perturbation left by iteration i = NUM_TUBES-1;
+        // otherwise every α column is contaminated by (dBeta/dAlpha) times the
+        // β₃ segment response.
+        if (i <= NUM_TUBES)
             m_segment.recalculateSegments(m_tubes, betaView());
 
-        std::ignore = residual(initGuess);
-        blaze::column(jac, iter) = (tipPosition() - tipPos) / q_scaled[iter];
-        q_perturbed[iter] = q_original[iter];
+        const bvp_type Fp = residual(xStar);
+        blaze::column(Fq, i) = (Fp - F0) / step;
+        blaze::column(Rq, i) = (tipPosition() - tip0) / step;
+        m_q[i] = q_original[i];
     }
 
-    return jac;
+    // Implicit function theorem on F(x, q) = const:
+    //   dx/dq = −(∂F/∂x)⁻¹ ∂F/∂q  ⇒  dtip/dq = ∂r/∂q − (∂r/∂x)(∂F/∂x)⁻¹(∂F/∂q).
+    const Mat<BVP_DIM, 6UL> Y = detail::invertJacobian(Fx) * Fq;
+    return Rq - Rx * Y;
     // ScopeExit destructor runs here — m_q and m_segment are restored.
 }
 
@@ -320,161 +340,183 @@ FKResult CTR::actuate(const blaze::StaticVector<double, 6UL> &q, bvp_type &initG
 
 // ─── Inverse kinematics ───────────────────────────────────────────────────────
 
-IKResult CTR::solveIK(const blaze::StaticVector<double, 3UL> &target, double posTol, bvp_type &initGuess)
+IKResult CTR::solveIK(const blaze::StaticVector<double, 3UL> &target, double posTol, bvp_type &initGuess,
+                      const IKOptions &opts)
 {
-    double minError = 1.0E3;
-    Mat<3UL, 6UL> J;
-    Mat<6UL, 3UL> J_inv;
-
     detail::sanitizeBVPGuess(initGuess);
 
-    blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor>> Kp, Kd, Ki;
-    blaze::diagonal(Kp) = 1.000;
-    blaze::diagonal(Ki) = 0.050;
-    blaze::diagonal(Kd) = 0.001;
-
-    blaze::StaticVector<double, 6UL> dqdt, q_min(m_q), q(m_q);
-    bvp_type initGuessMin(initGuess);
-
-    FKResult fk = actuate(q, initGuess);
+    // ── Establish a valid FK state at the current configuration ──────────────
+    FKResult fk = actuate(m_q, initGuess);
     if (!fk)
-        return {.converged = false,
-                .positionError = blaze::norm(target - tipPosition()),
-                .iterations = 0UL,
-                .lastBVPStatus = fk.status,
-                .q = m_q};
-
-    blaze::StaticVector<double, 3UL> x_CTR = tipPosition();
-    blaze::StaticVector<double, 3UL> tipError = target - x_CTR;
-    blaze::StaticVector<double, 3UL> last_tipError = tipError;
-    blaze::StaticVector<double, 3UL> d_tipError{0.0, 0.0, 0.0};
-    blaze::StaticVector<double, 3UL> int_tipError{0.0, 0.0, 0.0};
-    static constexpr double integralClamp = 5.0;
-
-    double dist2Tgt = blaze::norm(tipError);
-
-    if (dist2Tgt < minError)
     {
-        minError = dist2Tgt;
-        q_min = q;
-        if (dist2Tgt <= posTol)
-            return {.converged = true,
-                    .positionError = dist2Tgt,
+        initGuess = 0.0; // one clean cold restart
+        fk = actuate(m_q, initGuess);
+        if (!fk)
+            return {.converged = false,
+                    .positionError = blaze::norm(target - tipPosition()),
                     .iterations = 0UL,
                     .lastBVPStatus = fk.status,
                     .q = m_q};
     }
 
-    constexpr double Clr = 5.0E-3;
+    // Accepted state: configuration, shooting vector, tip, error.
+    blaze::StaticVector<double, 6UL> q_acc = m_q;
+    bvp_type x_acc = initGuess;
+    blaze::StaticVector<double, 3UL> tip_acc = tipPosition();
+    blaze::StaticVector<double, 3UL> e = target - tip_acc;
+    double err_acc = blaze::norm(e);
 
+    // Tube geometry for the telescoping joint limits.
+    constexpr double Clr = 5.0E-3; // clearance between tube ends [m]
     const blaze::StaticVector<double, NUM_TUBES> L = {m_tubes[0UL].getTubeLength(), m_tubes[1UL].getTubeLength(),
                                                       m_tubes[2UL].getTubeLength()};
-
     const blaze::StaticVector<double, NUM_TUBES> ls = {m_tubes[0UL].getStraightLen(), m_tubes[1UL].getStraightLen(),
                                                        m_tubes[2UL].getStraightLen()};
 
-    blaze::StaticVector<double, NUM_TUBES> betaMax, betaMin;
+    // Levenberg-Marquardt damping state (dimensionally scaled inside the loop).
+    double lambda = opts.dampingSeed;
+    double nu = 2.0;
 
-    std::size_t N_itr = 0UL;
-    constexpr std::size_t maxIter = 500UL;
+    std::size_t iter = 0UL;
+    std::size_t stallCount = 0UL;
 
-    while ((dist2Tgt > posTol) && (N_itr < maxIter))
+    while ((err_acc > posTol) && (iter < opts.maxIterations))
     {
-        N_itr++;
+        ++iter;
 
-        J = kinematicJacobian(initGuess, x_CTR);
+        // Re-establish the accepted configuration (a rejected trial leaves m_q
+        // at the trial point) — cheap: no BVP solve, x_acc is already converged.
+        setConfiguration(q_acc);
+        m_segment.recalculateSegments(m_tubes, betaView());
 
-        std::size_t isfinite_ctr = 0UL;
-        while (!blaze::isfinite(J))
+        // ── Total kinematic Jacobian on the equilibrium manifold ─────────────
+        Mat<3UL, 6UL> J = kinematicJacobian(x_acc);
+        if (!blaze::isfinite(J))
         {
-            ++isfinite_ctr;
-            if (isfinite_ctr > 200UL)
+            // Rare: re-solve at the accepted configuration and retry once.
+            detail::sanitizeBVPGuess(x_acc);
+            fk = actuate(q_acc, x_acc);
+            J = kinematicJacobian(x_acc);
+            if (!fk || !blaze::isfinite(J))
                 break;
-            initGuess *= 0.750;
-            detail::sanitizeBVPGuess(initGuess);
-            std::ignore = residual(initGuess);
-            x_CTR = tipPosition();
-            J = kinematicJacobian(initGuess, x_CTR);
         }
 
-        J_inv = math::pInv(J);
+        // ── Damped least-squares step in the CAP-NORMALIZED joint space ──────
+        // β [m] and α [rad] are incommensurable; treating them Euclidean lets
+        // the large-magnitude β columns dominate the step direction, and a
+        // uniform cap then starves the α components. Scaling each joint by its
+        // own per-iteration cap (q̃ᵢ = qᵢ/sᵢ) makes "one unit" mean "one full
+        // step" for every joint: J̃ = J·S, solve (J̃J̃ᵀ + μI)h = e, Δq̃ = J̃ᵀh,
+        // and a uniform ‖Δq̃‖∞ ≤ 1 cap is fair across joint types.
+        e = target - tip_acc;
 
-        const auto b = betaView();
-        betaMin[0UL] = std::max({-ls[0UL], L[1UL] + b[1UL] - L[0UL], L[2UL] + b[2UL] - L[0UL]});
-        betaMin[1UL] = std::max({-ls[1UL], b[0UL] + Clr, L[2UL] + b[2UL] - L[1UL]});
-        betaMin[2UL] = std::max(-ls[2UL], b[1UL] + Clr);
+        blaze::StaticVector<double, 6UL> S;
+        for (std::size_t i = 0UL; i < NUM_TUBES; ++i)
+            S[i] = opts.maxBetaStep;
+        for (std::size_t i = NUM_TUBES; i < 6UL; ++i)
+            S[i] = opts.maxAlphaStep;
 
-        betaMax[0UL] = b[1UL] - Clr;
-        betaMax[1UL] = std::min(b[2UL] - Clr, L[0UL] + b[0UL] - L[1UL]);
-        betaMax[2UL] = std::min(L[1UL] + b[1UL] - L[2UL], L[0UL] + b[0UL] - L[2UL]);
+        Mat<3UL, 6UL> Js(J);
+        for (std::size_t i = 0UL; i < 6UL; ++i)
+            blaze::column(Js, i) *= S[i];
 
-        const auto taskSpaceCommand = Kp * tipError + Kd * d_tipError + Ki * int_tipError;
-        dqdt = J_inv * taskSpaceCommand;
+        const Mat<3UL, 3UL> JJt = Js * blaze::trans(Js);
+        const double diagScale = blaze::max(blaze::abs(blaze::diagonal(JJt)));
+        const double mu = lambda * diagScale;
 
-        auto rescale_dqdt = [&]() noexcept -> void
+        blaze::StaticVector<double, 3UL> h;
+        Mat<3UL, 3UL> Adamped(JJt);
+        for (std::size_t i = 0UL; i < 3UL; ++i)
+            Adamped(i, i) += mu;
+        blaze::solve(blaze::declsym(Adamped), h, e);
+
+        blaze::StaticVector<double, 6UL> dqScaled = blaze::trans(Js) * h;
+
+        // Uniform cap in scaled space: no component exceeds its own step cap.
+        const double dqInf = blaze::linfNorm(dqScaled);
+        if (dqInf > 1.0)
+            dqScaled *= 1.0 / dqInf;
+
+        blaze::StaticVector<double, 6UL> dq = S * dqScaled; // element-wise back-scaling
+
+        // ── Trial configuration: telescoping β limits + α wrap ────────────────
+        blaze::StaticVector<double, 6UL> q_trial = q_acc + dq;
         {
-            const auto b2 = betaView();
+            const auto &b = q_acc; // limits evaluated at the accepted β
+            blaze::StaticVector<double, NUM_TUBES> betaMin, betaMax;
+            betaMin[0UL] = std::max({-ls[0UL], L[1UL] + b[1UL] - L[0UL], L[2UL] + b[2UL] - L[0UL]});
+            betaMin[1UL] = std::max({-ls[1UL], b[0UL] + Clr, L[2UL] + b[2UL] - L[1UL]});
+            betaMin[2UL] = std::max(-ls[2UL], b[1UL] + Clr);
+
+            betaMax[0UL] = b[1UL] - Clr;
+            betaMax[1UL] = std::min(b[2UL] - Clr, L[0UL] + b[0UL] - L[1UL]);
+            betaMax[2UL] = std::min(L[1UL] + b[1UL] - L[2UL], L[0UL] + b[0UL] - L[2UL]);
+
             for (std::size_t i = 0UL; i < NUM_TUBES; ++i)
-            {
-                if (b2[i] + dqdt[i] > betaMax[i])
-                    dqdt[i] = (betaMax[i] - b2[i]) * 0.5;
-                if (b2[i] + dqdt[i] < betaMin[i])
-                    dqdt[i] = (betaMin[i] - b2[i]) * 0.5;
-            }
-        };
+                q_trial[i] = std::clamp(q_trial[i], betaMin[i], betaMax[i]);
+        }
+        // The wrap is an exact 2π congruence — FK-invariant, so the linear
+        // model below keeps using the unwrapped dq.
+        const blaze::StaticVector<double, 6UL> dq_actual = q_trial - q_acc;
+        blaze::subvector<3UL, NUM_TUBES>(q_trial) =
+            blaze::map(blaze::subvector<3UL, NUM_TUBES>(q_trial), [](double a) { return math::wrapToPi(a); });
 
-        rescale_dqdt();
+        // ── Trial evaluation via warm-started BVP solve ───────────────────────
+        bvp_type x_trial = x_acc;
+        const FKResult fkTrial = actuate(q_trial, x_trial);
 
-        q += dqdt;
-        blaze::subvector<3UL, NUM_TUBES>(q) =
-            blaze::map(blaze::subvector<3UL, NUM_TUBES>(q), [](double theta) { return math::wrapToPi(theta); });
-
-        fk = actuate(q, initGuess);
-
-        if (!fk)
+        bool accepted = false;
+        if (fkTrial)
         {
-            initGuess *= 0.75;
-            detail::sanitizeBVPGuess(initGuess);
-            fk = actuate(q, initGuess);
+            const blaze::StaticVector<double, 3UL> tip_trial = tipPosition();
+            const double err_trial = blaze::norm(target - tip_trial);
 
-            if (!fk)
+            if (err_trial < err_acc)
             {
-                initGuess = initGuessMin;
-                std::ignore = actuate(q_min, initGuess);
+                // Gain ratio for the damping update (Madsen-Nielsen-Tingleff).
+                const double predicted = blaze::sqrNorm(e) - blaze::sqrNorm(e - J * dq_actual);
+                const double rho =
+                    (blaze::sqrNorm(e) - err_trial * err_trial) / std::max(predicted, 1.0e-300);
+
+                accepted = true;
+                q_acc = q_trial;
+                x_acc = x_trial;
+                tip_acc = tip_trial;
+                fk = fkTrial;
+
+                if (err_acc - err_trial < 1.0e-10)
+                    ++stallCount;
+                else
+                    stallCount = 0UL;
+                err_acc = err_trial;
+
+                lambda *= std::max(1.0 / 3.0, 1.0 - std::pow(2.0 * rho - 1.0, 3.0));
+                lambda = std::max(lambda, 1.0e-12);
+                nu = 2.0;
             }
         }
 
-        x_CTR = tipPosition();
-        tipError = target - x_CTR;
-
-        int_tipError += tipError;
-        int_tipError =
-            blaze::map(int_tipError, [](double value) { return std::clamp(value, -integralClamp, integralClamp); });
-
-        d_tipError = tipError - last_tipError;
-        last_tipError = tipError;
-        dist2Tgt = blaze::norm(tipError);
-
-        if (dist2Tgt < minError)
+        if (!accepted)
         {
-            minError = dist2Tgt;
-            q_min = q;
-            initGuessMin = initGuess;
+            // Rejected (worse error or failed BVP): increase damping, shrink steps.
+            lambda *= nu;
+            nu *= 2.0;
+            if (lambda > 1.0e8)
+                break; // model exhausted — no productive step exists
         }
 
-        if (blaze::linfNorm(dqdt) <= 1.0E-8)
-            break; // stalled — exit to the common wrap-up below
+        if (stallCount >= 3UL)
+            break; // three consecutive negligible improvements
     }
 
-    // Re-actuate at the best configuration found so the object state (shape,
-    // tip, m_q) corresponds exactly to the returned result.
-    initGuess = std::move(initGuessMin);
-    fk = actuate(q_min, initGuess);
+    // ── Exit invariant: object state corresponds to the accepted result ──────
+    initGuess = x_acc;
+    fk = actuate(q_acc, initGuess);
 
     const double finalError = blaze::norm(target - tipPosition());
     return {.converged = (finalError <= posTol),
             .positionError = finalError,
-            .iterations = N_itr,
+            .iterations = iter,
             .lastBVPStatus = fk.status,
             .q = m_q};
 }
