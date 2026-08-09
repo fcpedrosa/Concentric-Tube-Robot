@@ -1,107 +1,128 @@
 #include "ctr/ODESystem.hpp"
-#include "ctr/detail/mathOperations.hpp"
+
+#include <cmath>
 
 namespace ctr
 {
 
 // default constructor
-ODESystem::ODESystem() : m_u_ast_x(0.0), m_u_ast_y(0.0), m_EI(0.0), m_GJ(0.0), m_f(0.0) {}
+ODESystem::ODESystem() : m_u_ast_x(0.0), m_u_ast_y(0.0), m_GJ(0.0), m_EIoverGJ(0.0), m_EIux(0.0), m_EIuy(0.0), m_f(0.0)
+{
+}
 
-// functor that implements the system of ODEs governing a three-tube CTR
+void ODESystem::setEquationParameters(const Segment &seg, std::size_t segIdx,
+                                      const blaze::StaticVector<double, 3UL> &force)
+{
+    const auto &EI = seg.get_EI();
+    const auto &GJ = seg.get_GJ();
+    const auto &U_x = seg.get_U_x();
+    const auto &U_y = seg.get_U_y();
+
+    double sumEI = 0.0;
+    for (std::size_t i = 0UL; i < NUM_TUBES; ++i)
+    {
+        const double ei = EI(i, segIdx);
+        const double gj = GJ(i, segIdx);
+        m_u_ast_x[i] = U_x(i, segIdx);
+        m_u_ast_y[i] = U_y(i, segIdx);
+        m_GJ[i] = gj;
+        m_EIoverGJ[i] = (gj != 0.0) ? ei / gj : 0.0;
+        m_EIux[i] = ei * m_u_ast_x[i];
+        m_EIuy[i] = ei * m_u_ast_y[i];
+        sumEI += ei;
+    }
+    // At least tube 1 is present in every segment, so sumEI > 0.
+    m_invSumEI = 1.0 / sumEI;
+
+    m_f = force;
+    m_hasForce = (blaze::sqrNorm(force) != 0.0);
+}
+
+// Cosserat-model ODE right-hand side for a three-tube CTR (Rucker, Jones &
+// Webster, IEEE T-RO 2010), written in scalar form: evaluated four times per
+// integration step, so no matrix temporaries are constructed here.
 void ODESystem::operator()(const state_type &y, state_type &dyds, const double /*s*/) const noexcept
 {
     using namespace StateIdx;
 
-    // 1st element of y computes the bending moment of the first (innermost) tube along the x direction
-    // 2nd element of y computes the bending moment of the first (innermost) tube along the y direction
-    // next 3 elements of y are the torsional curvatures for the three tubes, e.g., y = [u1_z  u2_z  u3_z]
-    // next 3 elements of y are twist angles, theta_i = [theta_1 theta_2  theta_3]
-    // last 7 elements are r(position) and h(quaternion-orientations) of the local frame, respectively at each
-    // arc-length s
+    // Relative twist angles of tubes 2 and 3 w.r.t. tube 1.
+    const double c2 = std::cos(y[THETA_2]), s2 = std::sin(y[THETA_2]);
+    const double c3 = std::cos(y[THETA_3]), s3 = std::sin(y[THETA_3]);
 
-    // dθᵢ/ds = u_iz − u_1z  (Rucker et al. 2010, eq. 16): torsional-curvature difference,
-    // NOT a difference of the twist angles themselves.
-    const double dtheta_2 = y[UZ_2] - y[UZ_1];
-    const double dtheta_3 = y[UZ_3] - y[UZ_1];
+    // Bending moment of the assembly, body frame: mb = [y0, y1, Σ GJᵢ·uzᵢ].
+    const double mbx = y[MB_X];
+    const double mby = y[MB_Y];
+    const double mbz = m_GJ[0UL] * y[UZ_1] + m_GJ[1UL] * y[UZ_2] + m_GJ[2UL] * y[UZ_3];
 
-    // implementing curvature equation u_i = transpose(R_z(theta_i))*u_1 + \dot{theta_i}*e3
-    blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R1;
-    const blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R2(math::rotz(y[THETA_2]));
-    const blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R3(math::rotz(y[THETA_3]));
+    // Curvature of tube 1 (xy): u1_xy = (mb + Σ Rz(θᵢ)·Kᵢ·u*ᵢ)_xy / ΣEI,
+    // with the Rz products expanded in scalars (Kᵢ·u*ᵢ has zero z-component).
+    const double u1x = m_invSumEI * (mbx + m_EIux[0UL] + (c2 * m_EIux[1UL] - s2 * m_EIuy[1UL]) +
+                                     (c3 * m_EIux[2UL] - s3 * m_EIuy[2UL]));
+    const double u1y = m_invSumEI * (mby + m_EIuy[0UL] + (s2 * m_EIux[1UL] + c2 * m_EIuy[1UL]) +
+                                     (s3 * m_EIux[2UL] + c3 * m_EIuy[2UL]));
+    const double u1z = y[UZ_1];
 
-    const blaze::StaticVector<double, 3UL> u1_ast = {m_u_ast_x[0UL], m_u_ast_y[0UL], 0.0};
-    const blaze::StaticVector<double, 3UL> u2_ast = {m_u_ast_x[1UL], m_u_ast_y[1UL], 0.0};
-    const blaze::StaticVector<double, 3UL> u3_ast = {m_u_ast_x[2UL], m_u_ast_y[2UL], 0.0};
+    // Curvatures of tubes 2 and 3 (xy): uᵢ = Rz(θᵢ)ᵀ·u1 + θ'ᵢ·e3.
+    const double u2x = c2 * u1x + s2 * u1y;
+    const double u2y = -s2 * u1x + c2 * u1y;
+    const double u3x = c3 * u1x + s3 * u1y;
+    const double u3y = -s3 * u1x + c3 * u1y;
 
-    // estimating curvature of the first tube along the x and y directions
-    const blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K1 = {
-        {m_EI[0UL], 0.0, 0.0}, {0.0, m_EI[0UL], 0.0}, {0.0, 0.0, m_GJ[0UL]}};
+    // Torsional curvature rates u'zᵢ = (EIᵢ/GJᵢ)(uₓᵢ·u*ᵧᵢ − uᵧᵢ·u*ₓᵢ) and twist
+    // rates θ'ᵢ = uzᵢ − uz₁ (identically 0 for tube 1 and for absent tubes,
+    // whose m_EIoverGJ and m_GJ are 0).
+    dyds[UZ_1] = m_EIoverGJ[0UL] * (u1x * m_u_ast_y[0UL] - u1y * m_u_ast_x[0UL]);
+    dyds[UZ_2] = m_EIoverGJ[1UL] * (u2x * m_u_ast_y[1UL] - u2y * m_u_ast_x[1UL]);
+    dyds[UZ_3] = m_EIoverGJ[2UL] * (u3x * m_u_ast_y[2UL] - u3y * m_u_ast_x[2UL]);
+    dyds[THETA_1] = 0.0;
+    dyds[THETA_2] = (m_GJ[1UL] != 0.0) ? (y[UZ_2] - y[UZ_1]) : 0.0;
+    dyds[THETA_3] = (m_GJ[2UL] != 0.0) ? (y[UZ_3] - y[UZ_1]) : 0.0;
 
-    const blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K2 = {
-        {m_EI[1UL], 0.0, 0.0}, {0.0, m_EI[1UL], 0.0}, {0.0, 0.0, m_GJ[1UL]}};
+    // Moment rate (xy): mb' = −u1 × mb − ê₃·R₁ᵀ·f  (force term only when loaded).
+    dyds[MB_X] = -(u1y * mbz - u1z * mby);
+    dyds[MB_Y] = -(u1z * mbx - u1x * mbz);
 
-    const blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K3 = {
-        {m_EI[2UL], 0.0, 0.0}, {0.0, m_EI[2UL], 0.0}, {0.0, 0.0, m_GJ[2UL]}};
+    // Quaternion h = [w, x, y, z] of the tube-1 body frame.
+    const double hw = y[QUAT_W], hx = y[QUAT_X], hy = y[QUAT_Y], hz = y[QUAT_Z];
+    // Same self-normalizing scale as math::getSO3 (absorbs quaternion drift).
+    const double scale = 2.0 / (hw * hw + hx * hx + hy * hy + hz * hz);
 
-    const blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K_inv{blaze::inv(K1 + K2 + K3)};
-
-    const blaze::StaticVector<double, 3UL> mb{y[MB_X], y[MB_Y],
-                                              K1(2UL, 2UL) * y[UZ_1] + K2(2UL, 2UL) * y[UZ_2] + K3(2UL, 2UL) * y[UZ_3]};
-
-    // estimating the curvature of the innermost tube along the x,y directions
-    blaze::StaticVector<double, 3UL> u1 = K_inv * (mb + (K1 * u1_ast) + (R2 * K2 * u2_ast) + (R3 * K3 * u3_ast));
-    // grabbing the torsion along the z-direction from state vector
-    u1[2UL] = y[UZ_1];
-
-    // curvatures of the intermediate and outermost tubes
-    const blaze::StaticVector<double, 3UL> u2 = blaze::trans(R2) * u1 + (dtheta_2 * kE3);
-    const blaze::StaticVector<double, 3UL> u3 = blaze::trans(R3) * u1 + (dtheta_3 * kE3);
-
-    // gets orientation of the innermost tube (Tb 1) at the current arc-length
-    math::getSO3(blaze::subvector<QUAT_W, 4UL>(y), R1);
-
-    // estimating the twist curvatures (uz_i) and twist angles (theta_i)
-    auto computeTwists = [&](std::size_t idx, const blaze::StaticVector<double, 3UL> &u) -> void
+    if (m_hasForce)
     {
-        if (m_GJ[idx] != 0.0)
-        {
-            // uz_i = ( (E_i * I_i) / (G_i * J_i) ) * (ux_i * uy_ast - uy_i * ux_ast)
-            dyds[UZ_1 + idx] = (m_EI[idx] / m_GJ[idx]) * (u[0UL] * m_u_ast_y[idx] - u[1UL] * m_u_ast_x[idx]);
-            // dtheta_i = uz_i - uz_1
-            dyds[THETA_1 + idx] = u[2UL] - u1[2UL];
-        }
-        else
-        {
-            dyds[UZ_1 + idx] = dyds[THETA_1 + idx] = 0.0;
-        }
-    };
+        // (R₁ᵀ f) needs the full rotation; ê₃·v = e₃ × v = [−v_y, v_x, 0].
+        const double r00 = 1.0 + scale * (-hy * hy - hz * hz);
+        const double r10 = scale * (hx * hy + hz * hw);
+        const double r20 = scale * (hx * hz - hy * hw);
+        const double r01 = scale * (hx * hy - hz * hw);
+        const double r11 = 1.0 + scale * (-hx * hx - hz * hz);
+        const double r21 = scale * (hy * hz + hx * hw);
+        const double r02 = scale * (hx * hz + hy * hw);
+        const double r12 = scale * (hy * hz - hx * hw);
+        const double r22 = 1.0 + scale * (-hx * hx - hy * hy);
 
-    computeTwists(0UL, u1);
-    computeTwists(1UL, u2);
-    computeTwists(2UL, u3);
+        const double vx = r00 * m_f[0UL] + r10 * m_f[1UL] + r20 * m_f[2UL]; // (R₁ᵀ f)_x
+        const double vy = r01 * m_f[0UL] + r11 * m_f[1UL] + r21 * m_f[2UL]; // (R₁ᵀ f)_y
+        dyds[MB_X] -= -vy;
+        dyds[MB_Y] -= vx;
 
-    // internal moment of tube 1 along the x and y directions
-    blaze::subvector<MB_X, 2UL>(dyds) =
-        blaze::subvector<0UL, 2UL>(-math::hatOperator(u1) * mb - math::hatPreMultiply(kE3, blaze::trans(R1)) * m_f);
+        // r' = R₁·e₃ (third column).
+        dyds[POS_X] = r02;
+        dyds[POS_Y] = r12;
+        dyds[POS_Z] = r22;
+    }
+    else
+    {
+        // Only the third column of R₁ is needed.
+        dyds[POS_X] = scale * (hx * hz + hy * hw);
+        dyds[POS_Y] = scale * (hy * hz - hx * hw);
+        dyds[POS_Z] = 1.0 + scale * (-hx * hx - hy * hy);
+    }
 
-    // spatial derivative of the quaternion representation h_dot
-    blaze::subvector<QUAT_W, 4UL>(dyds) = math::quaternionDiff(u1, blaze::subvector<QUAT_W, 4UL>(y));
-
-    // calculating r_dot = R1 * e3
-    blaze::subvector<POS_X, 3UL>(dyds) = blaze::column<2UL>(R1);
-}
-
-void ODESystem::setEquationParameters(const blaze::StaticVector<double, NUM_TUBES> &u_ast_x,
-                                      const blaze::StaticVector<double, NUM_TUBES> &u_ast_y,
-                                      const blaze::StaticVector<double, NUM_TUBES> &EI,
-                                      const blaze::StaticVector<double, NUM_TUBES> &GJ,
-                                      const blaze::StaticVector<double, 3UL> &force)
-{
-    m_u_ast_x = u_ast_x;
-    m_u_ast_y = u_ast_y;
-    m_EI = EI;
-    m_GJ = GJ;
-    m_f = force;
+    // Quaternion rate: h' = 0.5 · h ⊗ [0, u1].
+    dyds[QUAT_W] = 0.5 * (-u1x * hx - u1y * hy - u1z * hz);
+    dyds[QUAT_X] = 0.5 * (u1x * hw + u1z * hy - u1y * hz);
+    dyds[QUAT_Y] = 0.5 * (u1y * hw - u1z * hx + u1x * hz);
+    dyds[QUAT_Z] = 0.5 * (u1z * hw + u1y * hx - u1x * hy);
 }
 
 } // namespace ctr

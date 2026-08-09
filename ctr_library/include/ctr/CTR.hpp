@@ -168,11 +168,24 @@ class CTR
 
     // ─── FK internals ─────────────────────────────────────────────────────────
 
-    /** Resets integration buffers and initial conditions prior to an ODE shot. */
+    /**
+     * Integration recording mode. Lean shots (all solver iterations and all
+     * finite-difference Jacobian columns) skip the backbone trajectory
+     * recording entirely — only the final state and the distal torsional
+     * curvatures (captured inside the segment loop) are kept. A Full shot
+     * additionally records m_y / m_s for shape access.
+     */
+    enum class ShotMode : bool
+    {
+        Lean,
+        Full
+    };
+
+    /** Resets initial conditions (and, for Full shots, the recording buffers). */
     void reset(const bvp_type &initGuess);
 
     /** Integrates the backbone ODE once; returns the distal boundary-condition residue. */
-    [[nodiscard]] bvp_type residual(const bvp_type &initGuess);
+    [[nodiscard]] bvp_type residual(const bvp_type &initGuess, ShotMode mode = ShotMode::Lean);
 
     /** Finite-difference Jacobian of the BVP residue w.r.t. the shooting variables (5×5). */
     [[nodiscard]] Mat<BVP_DIM, BVP_DIM> bvpJacobian(const bvp_type &initGuess, const bvp_type &residue);
@@ -227,11 +240,18 @@ class CTR
     /** ODE system implementing the CTR backbone kinematics. */
     ODESystem m_stateEquations;
 
-    /** ODE integration state history (one entry per arc-length step). */
+    /** ODE integration state history (one entry per arc-length step; Full shots only). */
     std::vector<state_type> m_y;
 
-    /** Arc-length values corresponding to each entry in m_y. */
+    /** Arc-length values corresponding to each entry in m_y (Full shots only). */
     std::vector<double> m_s;
+
+    /** Final ODE state of the most recent shot (Lean or Full). */
+    state_type m_finalState{};
+
+    /** Torsional curvatures uz₂, uz₃ at the respective tubes' distal ends,
+     *  captured inside the segment loop of the most recent shot. */
+    blaze::StaticVector<double, 2UL> m_uzDistal{};
 
     /** Pluggable BVP root-finding strategy. */
     std::unique_ptr<BVPSolver> m_solver;

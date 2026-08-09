@@ -50,6 +50,17 @@ TEST_CASE("Fixed-step RK4: observed order and default-step accuracy", "[slow][co
         CAPTURE(q[4UL], q[5UL]);
 
         bvp_type guess{};
+        // Warm the guess into this configuration's basin via one half-alpha
+        // continuation step: cold-start robustness is covered elsewhere; this
+        // study measures integration accuracy of a given physical solution.
+        {
+            CTR warmup = testing::makeReferenceRobot();
+            blaze::StaticVector<double, 6UL> qHalf = q;
+            qHalf[3UL] *= 0.5;
+            qHalf[4UL] *= 0.5;
+            qHalf[5UL] *= 0.5;
+            REQUIRE(warmup.actuate(qHalf, guess));
+        }
         const auto reference = tipAt(q, 0.25e-3, guess);
 
         const std::array<double, 3UL> steps = {4.0e-3, 2.0e-3, 1.0e-3};

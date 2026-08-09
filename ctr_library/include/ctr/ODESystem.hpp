@@ -2,6 +2,7 @@
 
 #include <blaze/Math.h>
 #include "ctr/Types.hpp"
+#include "ctr/Segment.hpp"
 
 namespace ctr
 {
@@ -12,7 +13,10 @@ namespace ctr
  *
  * Designed as a callable functor compatible with Boost.Odeint integrators.
  * Reparameterized via setEquationParameters() before integrating each
- * arc-length segment.
+ * arc-length segment; all quantities that are constant within a segment
+ * (stiffness sums, EI·u* products, EI/GJ ratios) are precomputed there, so
+ * operator() — evaluated four times per integration step — is pure scalar
+ * arithmetic with two sin/cos pairs and no matrix algebra.
  *
  * @note Advanced API: most users never touch this class directly — CTR owns
  *       and drives it internally.
@@ -20,20 +24,19 @@ namespace ctr
 class ODESystem
 {
   private:
-    /** @brief Pre-curvature of the tubes along the 'x' direction in the current segment [1/m]. */
-    blaze::StaticVector<double, NUM_TUBES> m_u_ast_x;
+    // ─── Raw per-segment inputs ───────────────────────────────────────────────
+    blaze::StaticVector<double, NUM_TUBES> m_u_ast_x; ///< Pre-curvature x per tube [1/m]; 0 if absent/straight.
+    blaze::StaticVector<double, NUM_TUBES> m_u_ast_y; ///< Pre-curvature y per tube [1/m].
+    blaze::StaticVector<double, NUM_TUBES> m_GJ;      ///< Torsional stiffness per tube [N·m²]; 0 if absent.
 
-    /** @brief Pre-curvature of the tubes along the 'y' direction in the current segment [1/m]. */
-    blaze::StaticVector<double, NUM_TUBES> m_u_ast_y;
+    // ─── Per-segment invariants (precomputed in setEquationParameters) ────────
+    blaze::StaticVector<double, NUM_TUBES> m_EIoverGJ; ///< EIᵢ/GJᵢ, 0 where the tube is absent.
+    blaze::StaticVector<double, NUM_TUBES> m_EIux;     ///< EIᵢ·u*ₓᵢ [N·m].
+    blaze::StaticVector<double, NUM_TUBES> m_EIuy;     ///< EIᵢ·u*ᵧᵢ [N·m].
+    double m_invSumEI{0.0};                            ///< 1 / ΣEIᵢ [1/(N·m²)].
 
-    /** @brief Bending stiffness of each tube in the current segment [N·m²]. Zero if the tube is absent. */
-    blaze::StaticVector<double, NUM_TUBES> m_EI;
-
-    /** @brief Torsional stiffness of each tube in the current segment [N·m²]. Zero if the tube is absent. */
-    blaze::StaticVector<double, NUM_TUBES> m_GJ;
-
-    /** @brief Point force acting at the distal end of the CTR [N], global frame. */
-    blaze::StaticVector<double, 3UL> m_f;
+    blaze::StaticVector<double, 3UL> m_f; ///< Distal point force [N], global frame.
+    bool m_hasForce{false};               ///< Short-circuits the force term when unloaded.
 
   public:
     /** @brief Unit vector in the z-direction (constant). Exposed for use in boundary conditions. */
@@ -58,19 +61,13 @@ class ODESystem
     void operator()(const state_type &y, state_type &dyds, double s) const noexcept;
 
     /**
-     * @brief Updates all kinematic parameters before integrating a new segment.
+     * @brief Loads one segment's parameters and precomputes all per-segment invariants.
      *
-     * @param u_ast_x Pre-curvature along x for each tube in the new segment [1/m].
-     * @param u_ast_y Pre-curvature along y for each tube in the new segment [1/m].
-     * @param EI      Bending stiffness for each tube in the new segment [N·m²].
-     * @param GJ      Torsional stiffness for each tube in the new segment [N·m²].
-     * @param force   Distal-end point force in the global frame [N].
+     * @param seg    The segment decomposition of the backbone.
+     * @param segIdx Index of the segment about to be integrated.
+     * @param force  Distal-end point force in the global frame [N].
      */
-    void setEquationParameters(const blaze::StaticVector<double, NUM_TUBES> &u_ast_x,
-                               const blaze::StaticVector<double, NUM_TUBES> &u_ast_y,
-                               const blaze::StaticVector<double, NUM_TUBES> &EI,
-                               const blaze::StaticVector<double, NUM_TUBES> &GJ,
-                               const blaze::StaticVector<double, 3UL> &force);
+    void setEquationParameters(const Segment &seg, std::size_t segIdx, const blaze::StaticVector<double, 3UL> &force);
 };
 
 } // namespace ctr

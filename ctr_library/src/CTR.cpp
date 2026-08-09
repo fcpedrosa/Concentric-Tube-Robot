@@ -95,9 +95,6 @@ void CTR::reset(const bvp_type &initGuess)
     const auto b = betaView();
     const double alpha1_0 = m_q[3UL] - b[0UL] * uz_0[0UL];
 
-    m_y.clear();
-    m_s.clear();
-
     // θᵢ(0) = αᵢ − βᵢ·u_iz(0) (twist wind-up over the straight transmission),
     // re-referenced so θ₁ ≡ 0 with α₁(0) absorbed into the base quaternion.
     m_theta_0 = {0.0, m_q[4UL] - b[1UL] * uz_0[1UL] - alpha1_0, m_q[5UL] - b[2UL] * uz_0[2UL] - alpha1_0};
@@ -107,17 +104,21 @@ void CTR::reset(const bvp_type &initGuess)
 
 // ─── ODE integration (one forward shot) ──────────────────────────────────────
 
-bvp_type CTR::residual(const bvp_type &initGuess)
+bvp_type CTR::residual(const bvp_type &initGuess, ShotMode mode)
 {
     using namespace StateIdx;
 
     reset(initGuess);
 
-    const auto &EI = m_segment.get_EI();
-    const auto &GJ = m_segment.get_GJ();
-    const auto &U_x = m_segment.get_U_x();
-    const auto &U_y = m_segment.get_U_y();
+    const bool record = (mode == ShotMode::Full);
+    if (record)
+    {
+        m_y.clear();
+        m_s.clear();
+    }
+
     const auto &S = m_segment.getTransitionPoints();
+    const blaze::StaticVector<double, NUM_TUBES> &distEnd = m_segment.getDistalEnds();
 
     // Classic RK4, driven by a hand-written fixed-step loop below.
     //
@@ -153,41 +154,62 @@ bvp_type CTR::residual(const bvp_type &initGuess)
     y_0[QUAT_Y] = m_h_0[2UL];
     y_0[QUAT_Z] = m_h_0[3UL];
 
-    auto observe = [this](const state_type &y, double s)
-    {
-        m_y.push_back(y);
-        m_s.push_back(s);
-    };
-
     const double ds = m_ds;
     const std::size_t n_seg = S.size() - 1UL;
+
+    // uz₂/uz₃ at the respective tubes' distal ends. Distal ends are transition
+    // points by construction, so they coincide with segment boundaries and are
+    // captured inside the loop below for free. Initialize from s = 0 to cover
+    // the degenerate fully-retracted case (distal end clamped to 0).
+    m_uzDistal = {y_0[UZ_2], y_0[UZ_3]};
+
+    constexpr double kBoundaryTol = 1.0e-7; // matches Segment's merge tolerance
 
     for (std::size_t seg_idx = 0UL; seg_idx < n_seg; ++seg_idx)
     {
         const double s_start = S[seg_idx];
         const double s_end = S[seg_idx + 1UL];
 
-        m_stateEquations.setEquationParameters(blaze::column(U_x, seg_idx), blaze::column(U_y, seg_idx),
-                                               blaze::column(EI, seg_idx), blaze::column(GJ, seg_idx), m_wf);
+        m_stateEquations.setEquationParameters(m_segment, seg_idx, m_wf);
 
         // Fixed-step march: nFull steps of ds plus one explicit remainder step.
         const double len = s_end - s_start;
         const auto nFull = static_cast<std::size_t>(std::floor(len / ds + 1.0e-9));
 
         double s = s_start;
-        observe(y_0, s);
+        if (record)
+        {
+            m_y.push_back(y_0);
+            m_s.push_back(s);
+        }
         for (std::size_t step = 0UL; step < nFull; ++step)
         {
             stepper.do_step(std::ref(m_stateEquations), y_0, s, ds);
             s += ds;
-            observe(y_0, s);
+            if (record)
+            {
+                m_y.push_back(y_0);
+                m_s.push_back(s);
+            }
         }
         if (const double rem = s_end - s; rem > 1.0e-12)
         {
             stepper.do_step(std::ref(m_stateEquations), y_0, s, rem);
-            observe(y_0, s_end);
+            if (record)
+            {
+                m_y.push_back(y_0);
+                m_s.push_back(s_end);
+            }
         }
+
+        // Capture uz at tube 2/3 distal ends as we pass them.
+        if (std::fabs(s_end - distEnd[1UL]) < kBoundaryTol)
+            m_uzDistal[0UL] = y_0[UZ_2];
+        if (std::fabs(s_end - distEnd[2UL]) < kBoundaryTol)
+            m_uzDistal[1UL] = y_0[UZ_3];
     }
+
+    m_finalState = y_0;
 
     // Distal boundary conditions, expressed as a NON-DIMENSIONAL residue: every
     // component is a curvature [1/m] (moment rows scaled by 1/EI₁, the torsion
@@ -198,24 +220,8 @@ bvp_type CTR::residual(const bvp_type &initGuess)
 
     const blaze::StaticVector<double, 3UL> distalMoment = blaze::trans(R1) * m_wm;
 
-    bvp_type Residue = {(y_0[MB_X] - distalMoment[0UL]) / m_EI1, (y_0[MB_Y] - distalMoment[1UL]) / m_EI1,
-                        y_0[UZ_1] - (blaze::trans(ODESystem::kE3) * distalMoment) / m_GJ1, 0.0, 0.0};
-
-    const blaze::StaticVector<double, NUM_TUBES> &distEnd = m_segment.getDistalEnds();
-
-    auto computeResidue = [&](double distalEnd, std::size_t index) -> void
-    {
-        auto itt = std::lower_bound(m_s.begin(), m_s.end(), distalEnd - 1.0E-7);
-        // Clamp: lower_bound may return end() if the distal end exceeds the last
-        // sample by more than the tolerance (defensive — S.back() == max distal end).
-        const auto id = std::min(static_cast<std::size_t>(std::distance(m_s.begin(), itt)), m_s.size() - 1UL);
-        Residue[2UL + index] = m_y[id][UZ_1 + index];
-    };
-
-    computeResidue(distEnd[1UL], 1UL);
-    computeResidue(distEnd[2UL], 2UL);
-
-    return Residue;
+    return {(y_0[MB_X] - distalMoment[0UL]) / m_EI1, (y_0[MB_Y] - distalMoment[1UL]) / m_EI1,
+            y_0[UZ_1] - (blaze::trans(ODESystem::kE3) * distalMoment) / m_GJ1, m_uzDistal[0UL], m_uzDistal[1UL]};
 }
 
 // ─── Jacobians ────────────────────────────────────────────────────────────────
@@ -302,7 +308,14 @@ FKResult CTR::actuate(const blaze::StaticVector<double, 6UL> &q, bvp_type &initG
     m_segment.recalculateSegments(m_tubes, betaView());
     ensureSolver();
     ShootingProblem problem(*this);
-    return m_solver->solve(initGuess, problem);
+    const FKResult result = m_solver->solve(initGuess, problem);
+
+    // One Full shot at the returned shooting vector: the recorded backbone
+    // trajectory (shapes, states) then always corresponds exactly to the
+    // result the caller sees, regardless of which perturbed shot a solver
+    // evaluated last. Costs one integration (~5-10% of a warm solve).
+    std::ignore = residual(initGuess, ShotMode::Full);
+    return result;
 }
 
 // ─── Inverse kinematics ───────────────────────────────────────────────────────
@@ -470,10 +483,7 @@ IKResult CTR::solveIK(const blaze::StaticVector<double, 3UL> &target, double pos
 
 blaze::StaticVector<double, 3UL> CTR::tipPosition() const
 {
-    blaze::StaticVector<double, 3UL> pos;
-    if (!m_y.empty())
-        pos = blaze::subvector<StateIdx::POS_X, 3UL>(m_y.back());
-    return pos;
+    return blaze::subvector<StateIdx::POS_X, 3UL>(m_finalState);
 }
 
 blaze::StaticVector<double, NUM_TUBES> CTR::distalEnds() const
