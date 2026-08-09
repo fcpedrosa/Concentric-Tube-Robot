@@ -1,0 +1,77 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 26, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Debug + warnings",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CTR_ENABLE_WARNINGS": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "dev-asan",
+      "displayName": "Debug + warnings + ASan/UBSan",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build/dev-asan",
+      "cacheVariables": {
+        "CTR_ENABLE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "release-native",
+      "displayName": "Release + -march=native + LTO",
+      "inherits": "release",
+      "binaryDir": "${sourceDir}/build/release-native",
+      "cacheVariables": {
+        "CTR_ENABLE_NATIVE": "ON",
+        "CTR_ENABLE_LTO": "ON"
+      }
+    },
+    {
+      "name": "bench",
+      "displayName": "Benchmarks (release-native, no tests)",
+      "inherits": "release-native",
+      "binaryDir": "${sourceDir}/build/bench",
+      "cacheVariables": {
+        "CTR_BUILD_BENCHMARKS": "ON",
+        "BUILD_TESTING": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "dev-asan", "configurePreset": "dev-asan" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "release-native", "configurePreset": "release-native" },
+    { "name": "bench", "configurePreset": "bench" }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "dev-asan",
+      "configurePreset": "dev-asan",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

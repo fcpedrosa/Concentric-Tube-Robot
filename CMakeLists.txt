@@ -1,58 +1,64 @@
 cmake_minimum_required(VERSION 3.26)
-project(CTR_General_Use VERSION 2.1.4 LANGUAGES CXX)
 
-# Set the CMP0167 policy to find the upstream BoostConfig.cmake directly
-if(POLICY CMP0167)
-    cmake_policy(SET CMP0167 OLD)
-endif()
+project(ctr_kinematics
+    VERSION 3.0.0
+    DESCRIPTION "Cosserat-rod kinematics for three-tube concentric tube robots"
+    HOMEPAGE_URL "https://github.com/fcpedrosa/Concentric-Tube-Robot"
+    LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-option(CTR_ENABLE_WARNINGS "Enable project-wide warnings" OFF)
+# ─── Options ──────────────────────────────────────────────────────────────────
+option(CTR_ENABLE_WARNINGS "Enable project-wide warnings" ${PROJECT_IS_TOP_LEVEL})
 option(CTR_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 option(CTR_ENABLE_SANITIZERS "Enable Address/Undefined sanitizers" OFF)
+option(CTR_ENABLE_NATIVE "Build with -march=native" OFF)
+option(CTR_ENABLE_LTO "Enable interprocedural optimization (LTO)" OFF)
+option(CTR_BUILD_EXAMPLES "Build example executables" ${PROJECT_IS_TOP_LEVEL})
+option(CTR_BUILD_BENCHMARKS "Build benchmarks" OFF)
+option(CTR_BUILD_DOCS "Build Doxygen documentation target" OFF)
 
-include(CTest)
+if(PROJECT_IS_TOP_LEVEL)
+    include(CTest) # defines BUILD_TESTING (default ON)
+endif()
 
-# Set the default build type to Release if not specified
+# Default to a Release build when nothing was specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "Setting build type to 'Release' as none was specified.")
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build (Debug, Release, RelWithDebInfo, MinSizeRel)." FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
 endif()
 
-# Output directories
+# Output directories (build-tree convenience only)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Set RPATH to avoid library conflicts
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(CMAKE_BUILD_RPATH "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+# The library needs exactly two third-party packages:
+#   Boost (header-only use: Boost.Odeint) and Blaze (linear algebra).
+find_package(Boost 1.74 REQUIRED CONFIG)
+find_package(blaze REQUIRED CONFIG)
 
-# Dependency discovery
-find_package(Threads REQUIRED)
-find_package(Boost REQUIRED)
-find_package(Blaze REQUIRED)
-
-set(BLA_VENDOR OpenBLAS)
-set(BLA_STATIC ON)
-find_package(BLAS REQUIRED)
+# TEMPORARY: mathOp::pInv computes an SVD via blaze::svd, which calls LAPACK
+# (dgesdd) unconditionally. pInv is scheduled for removal (replaced by
+# fixed-size direct solves); drop this dependency together with it.
 find_package(LAPACK REQUIRED)
-find_package(TBB REQUIRED)
 
-set(CTR_THIRD_PARTY_LIBS
-    Boost::boost
-    blaze::blaze
-    TBB::tbb
-    BLAS::BLAS
-    LAPACK::LAPACK
-    CACHE INTERNAL "List of third-party targets used across the project")
+if(CTR_ENABLE_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ctr_ipo_ok OUTPUT ctr_ipo_msg)
+    if(ctr_ipo_ok)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    else()
+        message(WARNING "IPO/LTO not supported: ${ctr_ipo_msg}")
+    endif()
+endif()
 
+# ─── Internal interface targets (never installed/exported) ────────────────────
 add_library(ctr_project_options INTERFACE)
 
 if(CTR_ENABLE_WARNINGS)
@@ -70,6 +76,10 @@ if(CTR_ENABLE_WARNINGS)
     endif()
 endif()
 
+if(CTR_ENABLE_NATIVE AND NOT MSVC)
+    target_compile_options(ctr_project_options INTERFACE -march=native)
+endif()
+
 add_library(ctr_sanitizers INTERFACE)
 
 if(CTR_ENABLE_SANITIZERS)
@@ -81,6 +91,9 @@ if(CTR_ENABLE_SANITIZERS)
     endif()
 endif()
 
-# addind the library and main executable directories to the project tree
-add_subdirectory(ctr_library) # static CTR library
-add_subdirectory(executable) # main executable
+# ─── Project tree ─────────────────────────────────────────────────────────────
+add_subdirectory(ctr_library)
+
+if(CTR_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()

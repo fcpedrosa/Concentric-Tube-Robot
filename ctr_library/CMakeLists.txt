@@ -1,5 +1,4 @@
-# listing the CTR library source files into a variable
-set(CTR_LIB_SOURCES
+add_library(ctr_kinematics STATIC
     src/CTR.cpp
     src/BVPSolver.cpp
     src/ODESystem.cpp
@@ -7,23 +6,58 @@ set(CTR_LIB_SOURCES
     src/Tube.cpp
     src/mathOperations.cpp
 )
+add_library(ctr::kinematics ALIAS ctr_kinematics)
 
-# Create the CTR static library
-add_library(CTRlib STATIC ${CTR_LIB_SOURCES})
+set_target_properties(ctr_kinematics PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    EXPORT_NAME kinematics)
 
-# Include directories for the CTR library
-target_include_directories(CTRlib
-    PUBLIC
+target_include_directories(ctr_kinematics PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-target_compile_features(CTRlib PUBLIC cxx_std_23)
+target_compile_features(ctr_kinematics PUBLIC cxx_std_23)
 
-target_link_libraries(CTRlib
+# Blaze's shared-memory parallelization only adds dispatch overhead (and an
+# OpenMP dependency) for this library's small fixed-size kernels. Blaze is
+# header-only, so the setting must be PUBLIC: consumers have to compile
+# against the same configuration.
+target_compile_definitions(ctr_kinematics PUBLIC
+    BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0)
+
+target_link_libraries(ctr_kinematics
     PUBLIC
-    ${CTR_THIRD_PARTY_LIBS}
+        Boost::headers
+        blaze::blaze
     PRIVATE
-    ctr_project_options
-    ctr_sanitizers
-)
+        LAPACK::LAPACK # TEMPORARY: only mathOp::pInv (blaze::svd) needs this
+        "$<BUILD_LOCAL_INTERFACE:ctr_project_options>"
+        "$<BUILD_LOCAL_INTERFACE:ctr_sanitizers>")
+
+# ─── Install & export ─────────────────────────────────────────────────────────
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+install(TARGETS ctr_kinematics
+    EXPORT ctr_kinematics-targets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(EXPORT ctr_kinematics-targets
+    NAMESPACE ctr::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ctr_kinematics)
+
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/cmake/ctr_kinematics-config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/ctr_kinematics-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ctr_kinematics)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/ctr_kinematics-config-version.cmake
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/ctr_kinematics-config.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/ctr_kinematics-config-version.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ctr_kinematics)
