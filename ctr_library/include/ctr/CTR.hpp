@@ -123,6 +123,9 @@ class CTR
     /** @brief Returns the BVP convergence tolerance. */
     [[nodiscard]] double tolerance() const noexcept { return m_accuracy; }
 
+    /** @brief Returns the fixed arc-length integration step [m]. */
+    [[nodiscard]] double integrationStep() const noexcept { return m_ds; }
+
     /** @brief Full ODE state at each recorded arc-length sample (advanced). */
     [[nodiscard]] std::span<const state_type> states() const noexcept;
 
@@ -145,6 +148,15 @@ class CTR
 
     /** @brief Replaces one tube (innermost-first index) and recomputes the segmentation. */
     void setTube(std::size_t idx, Tube tube);
+
+    /**
+     * @brief Sets the fixed arc-length integration step [m] (default 1 mm).
+     *
+     * Integration is deliberately fixed-step and deterministic (the
+     * finite-difference Jacobians depend on it); this knob trades accuracy
+     * for speed uniformly. Values in [1e-5, 1e-2] are accepted.
+     */
+    void setIntegrationStep(double ds);
 
   private:
     friend class ShootingProblem; // the only external access path to the FK internals
@@ -190,6 +202,9 @@ class CTR
 
     /** BVP convergence tolerance. */
     double m_accuracy;
+
+    /** Fixed arc-length integration step [m]. */
+    double m_ds = 1.0e-3;
 
     /** Active root-finding method — stored so copy/move preserve the solver type. */
     RootFindingMethod m_method;

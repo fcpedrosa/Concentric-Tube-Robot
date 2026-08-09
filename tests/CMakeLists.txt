@@ -37,3 +37,12 @@ target_link_libraries(ctr_regression_tests PRIVATE ctr::kinematics Catch2::Catch
                                                    ctr_sanitizers)
 target_include_directories(ctr_regression_tests PRIVATE support)
 catch_discover_tests(ctr_regression_tests PROPERTIES LABELS "regression" TIMEOUT 300)
+
+# ── Slow tests: convergence studies etc. (excluded from quick runs via -LE slow)
+add_executable(ctr_slow_tests
+    slow/test_convergence.cpp
+)
+target_link_libraries(ctr_slow_tests PRIVATE ctr::kinematics Catch2::Catch2WithMain ctr_project_options
+                                             ctr_sanitizers)
+target_include_directories(ctr_slow_tests PRIVATE support)
+catch_discover_tests(ctr_slow_tests PROPERTIES LABELS "slow" TIMEOUT 900)

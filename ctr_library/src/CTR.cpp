@@ -1,10 +1,13 @@
 #include "ctr/CTR.hpp"
 #include "ctr/detail/mathOperations.hpp"
 #include "BVPSolver.hpp"
-#include "odeintAlgebra.hpp"
+
+#include <boost/numeric/odeint/stepper/runge_kutta4.hpp>
+#include <boost/numeric/odeint/algebra/vector_space_algebra.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <tuple>
 
 namespace ctr
@@ -114,11 +117,19 @@ bvp_type CTR::residual(const bvp_type &initGuess)
     const auto &U_y = m_segment.get_U_y();
     const auto &S = m_segment.getTransitionPoints();
 
-    boost::numeric::odeint::adaptive_adams_bashforth_moulton<8UL, state_type, double, state_type, double,
-                                                             BlazeBVPAlgebra,
-                                                             boost::numeric::odeint::default_operations,
-                                                             boost::numeric::odeint::initially_resizer>
-        abm8_stepper;
+    // Classic RK4, driven by a hand-written fixed-step loop below.
+    //
+    // Deliberately NOT an error-controlled stepper: both finite-difference
+    // Jacobians (bvpJacobian and the task-space Jacobian) rely on the
+    // truncation error cancelling between nominal and perturbed shots, which
+    // requires a deterministic step sequence. A one-step method also has no
+    // multistep restart transient at the 5-6 material discontinuities per
+    // backbone (the previous ABM8 spent most short segments inside its
+    // initialization ramp — and its error estimate was silently discarded by
+    // the integrate_adaptive overload resolution anyway).
+    boost::numeric::odeint::runge_kutta4<state_type, double, state_type, double,
+                                         boost::numeric::odeint::vector_space_algebra>
+        stepper;
 
     // Initial conditions
     state_type y_0;
@@ -138,13 +149,13 @@ bvp_type CTR::residual(const bvp_type &initGuess)
     y_0[QUAT_Y] = m_h_0[2UL];
     y_0[QUAT_Z] = m_h_0[3UL];
 
-    auto observer = [this](const state_type &y, double s)
+    auto observe = [this](const state_type &y, double s)
     {
         m_y.push_back(y);
         m_s.push_back(s);
     };
 
-    constexpr double ds = 1.0E-3;
+    const double ds = m_ds;
     const std::size_t n_seg = S.size() - 1UL;
 
     for (std::size_t seg_idx = 0UL; seg_idx < n_seg; ++seg_idx)
@@ -155,7 +166,23 @@ bvp_type CTR::residual(const bvp_type &initGuess)
         m_stateEquations.setEquationParameters(blaze::column(U_x, seg_idx), blaze::column(U_y, seg_idx),
                                                blaze::column(EI, seg_idx), blaze::column(GJ, seg_idx), m_wf);
 
-        boost::numeric::odeint::integrate_adaptive(abm8_stepper, m_stateEquations, y_0, s_start, s_end, ds, observer);
+        // Fixed-step march: nFull steps of ds plus one explicit remainder step.
+        const double len = s_end - s_start;
+        const auto nFull = static_cast<std::size_t>(std::floor(len / ds + 1.0e-9));
+
+        double s = s_start;
+        observe(y_0, s);
+        for (std::size_t step = 0UL; step < nFull; ++step)
+        {
+            stepper.do_step(std::ref(m_stateEquations), y_0, s, ds);
+            s += ds;
+            observe(y_0, s);
+        }
+        if (const double rem = s_end - s; rem > 1.0e-12)
+        {
+            stepper.do_step(std::ref(m_stateEquations), y_0, s, rem);
+            observe(y_0, s_end);
+        }
     }
 
     // Distal boundary conditions
@@ -533,6 +560,11 @@ void CTR::setTube(std::size_t idx, Tube tube)
 {
     m_tubes[idx] = std::move(tube);
     m_segment.recalculateSegments(m_tubes, betaView());
+}
+
+void CTR::setIntegrationStep(double ds)
+{
+    m_ds = std::clamp(ds, 1.0e-5, 1.0e-2);
 }
 
 } // namespace ctr
