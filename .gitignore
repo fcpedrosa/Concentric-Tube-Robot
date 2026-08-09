@@ -9,6 +9,8 @@ build*/
 *.a
 *.so
 
+CLAUDE.md
+
 # Generated documentation (source of truth is docs/Doxyfile)
 docs/generated/
 

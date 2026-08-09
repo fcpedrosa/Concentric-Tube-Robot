@@ -2,35 +2,13 @@
 
 #include <vector>
 #include <array>
-#include <algorithm>
-#include "Tube.hpp"
-#include "CTRTypes.hpp"
+#include "ctr/Tube.hpp"
+#include "ctr/Types.hpp"
 
 namespace ctr
 {
 
 class CTR; // forward declaration — CTR is the only class that may recalculate segments
-
-// ─── Segment data aggregate ────────────────────────────────────────────────────
-
-/**
- * @brief Snapshot of per-segment kinematic parameters returned by Segment::getParameters().
- *
- * Holds values (not references), so it is safe to store beyond the lifetime of
- * the Segment that produced it and across calls to recalculateSegments().
- */
-struct SegmentData
-{
-    blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor>
-        EI; ///< Bending stiffness per segment (3 × N).
-    blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor>
-        GJ; ///< Torsional stiffness per segment (3 × N).
-    blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor>
-        U_x; ///< Pre-curvature x per segment (3 × N).
-    blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor>
-        U_y;               ///< Pre-curvature y per segment (3 × N).
-    std::vector<double> S; ///< Arc-length transition points (N+1 values).
-};
 
 // ─── Segment ───────────────────────────────────────────────────────────────────
 
@@ -64,10 +42,10 @@ class Segment
      *
      * Must be called (by CTR) whenever the linear actuation inputs change.
      *
-     * @param tubes Array of raw const pointers to the NUM_TUBES Tube objects.
+     * @param tubes The NUM_TUBES Tube objects (innermost first).
      * @param beta  Linear actuation inputs [beta_1, beta_2, beta_3].
      */
-    void recalculateSegments(const std::array<const Tube *, NUM_TUBES> &tubes,
+    void recalculateSegments(const std::array<Tube, NUM_TUBES> &tubes,
                              const blaze::StaticVector<double, NUM_TUBES> &beta);
 
   public:
@@ -76,10 +54,10 @@ class Segment
     /**
      * @brief Constructs and immediately computes the segment decomposition.
      *
-     * @param tubes Array of raw const pointers to the NUM_TUBES Tube objects.
+     * @param tubes The NUM_TUBES Tube objects (innermost first).
      * @param beta  Linear actuation inputs [beta_1, beta_2, beta_3].
      */
-    Segment(const std::array<const Tube *, NUM_TUBES> &tubes, const blaze::StaticVector<double, NUM_TUBES> &beta);
+    Segment(const std::array<Tube, NUM_TUBES> &tubes, const blaze::StaticVector<double, NUM_TUBES> &beta);
 
     Segment(const Segment &) = default;
     Segment(Segment &&) noexcept = default;
@@ -87,14 +65,7 @@ class Segment
     Segment &operator=(const Segment &) = default;
     Segment &operator=(Segment &&) noexcept = default;
 
-    // ─── Getters ─────────────────────────────────────────────────────────────
-
-    /**
-     * @brief Returns a snapshot of all per-segment kinematic parameters.
-     *
-     * The returned SegmentData holds copies — safe to keep indefinitely.
-     */
-    [[nodiscard]] SegmentData getParameters() const noexcept;
+    // ─── Getters (cheap, by const reference) ─────────────────────────────────
 
     /** @brief Returns the arc-length transition points along the CTR backbone. */
     [[nodiscard]] const std::vector<double> &getTransitionPoints() const noexcept;

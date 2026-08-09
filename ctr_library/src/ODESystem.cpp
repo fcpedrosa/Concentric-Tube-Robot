@@ -1,33 +1,21 @@
-// This is a personal academic project. Dear PVS-Studio, please check it.
-// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
-#include "ODESystem.hpp"
+#include "ctr/ODESystem.hpp"
+#include "ctr/detail/mathOperations.hpp"
 
 namespace ctr
 {
 
-// kE3 out-of-line definition required for ODR in C++17; C++20 constexpr inline makes it implicit
-// constexpr blaze::StaticVector<double, 3UL> ODESystem::kE3;  // uncomment if linking errors on older ABIs
-
 // default constructor
 ODESystem::ODESystem() : m_u_ast_x(0.0), m_u_ast_y(0.0), m_EI(0.0), m_GJ(0.0), m_f(0.0) {}
 
-// overloaded constructor
-ODESystem::ODESystem(const blaze::StaticVector<double, NUM_TUBES> &u_ast_x,
-                     const blaze::StaticVector<double, NUM_TUBES> &u_ast_y,
-                     const blaze::StaticVector<double, NUM_TUBES> &EI, const blaze::StaticVector<double, NUM_TUBES> &GJ)
-    : m_u_ast_x(u_ast_x), m_u_ast_y(u_ast_y), m_EI(EI), m_GJ(GJ), m_f(0.0)
-{
-}
-
 // functor that implements the system of ODEs governing a three-tube CTR
-void ODESystem::operator()(const state_type &y, state_type &dyds, const double /*s*/) noexcept
+void ODESystem::operator()(const state_type &y, state_type &dyds, const double /*s*/) const noexcept
 {
     using namespace StateIdx;
 
     // 1st element of y computes the bending moment of the first (innermost) tube along the x direction
     // 2nd element of y computes the bending moment of the first (innermost) tube along the y direction
     // next 3 elements of y are the torsional curvatures for the three tubes, e.g., y = [u1_z  u2_z  u3_z]
-    // next 2 elements of y are twist angles, theta_i = [theta_1 theta_2  theta_3]
+    // next 3 elements of y are twist angles, theta_i = [theta_1 theta_2  theta_3]
     // last 7 elements are r(position) and h(quaternion-orientations) of the local frame, respectively at each
     // arc-length s
 
@@ -38,8 +26,8 @@ void ODESystem::operator()(const state_type &y, state_type &dyds, const double /
 
     // implementing curvature equation u_i = transpose(R_z(theta_i))*u_1 + \dot{theta_i}*e3
     blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R1;
-    const blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R2(mathOp::rotz(y[THETA_2]));
-    const blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R3(mathOp::rotz(y[THETA_3]));
+    const blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R2(math::rotz(y[THETA_2]));
+    const blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> R3(math::rotz(y[THETA_3]));
 
     const blaze::StaticVector<double, 3UL> u1_ast = {m_u_ast_x[0UL], m_u_ast_y[0UL], 0.0};
     const blaze::StaticVector<double, 3UL> u2_ast = {m_u_ast_x[1UL], m_u_ast_y[1UL], 0.0};
@@ -70,7 +58,7 @@ void ODESystem::operator()(const state_type &y, state_type &dyds, const double /
     const blaze::StaticVector<double, 3UL> u3 = blaze::trans(R3) * u1 + (dtheta_3 * kE3);
 
     // gets orientation of the innermost tube (Tb 1) at the current arc-length
-    mathOp::getSO3(blaze::subvector<QUAT_W, 4UL>(y), R1);
+    math::getSO3(blaze::subvector<QUAT_W, 4UL>(y), R1);
 
     // estimating the twist curvatures (uz_i) and twist angles (theta_i)
     auto computeTwists = [&](std::size_t idx, const blaze::StaticVector<double, 3UL> &u) -> void
@@ -94,10 +82,10 @@ void ODESystem::operator()(const state_type &y, state_type &dyds, const double /
 
     // internal moment of tube 1 along the x and y directions
     blaze::subvector<MB_X, 2UL>(dyds) =
-        blaze::subvector<0UL, 2UL>(-mathOp::hatOperator(u1) * mb - mathOp::hatPreMultiply(kE3, blaze::trans(R1)) * m_f);
+        blaze::subvector<0UL, 2UL>(-math::hatOperator(u1) * mb - math::hatPreMultiply(kE3, blaze::trans(R1)) * m_f);
 
     // spatial derivative of the quaternion representation h_dot
-    blaze::subvector<QUAT_W, 4UL>(dyds) = mathOp::quaternionDiff(u1, blaze::subvector<QUAT_W, 4UL>(y));
+    blaze::subvector<QUAT_W, 4UL>(dyds) = math::quaternionDiff(u1, blaze::subvector<QUAT_W, 4UL>(y));
 
     // calculating r_dot = R1 * e3
     blaze::subvector<POS_X, 3UL>(dyds) = blaze::column<2UL>(R1);

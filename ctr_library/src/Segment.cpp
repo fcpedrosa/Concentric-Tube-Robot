@@ -1,4 +1,4 @@
-#include "Segment.hpp"
+#include "ctr/Segment.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -7,27 +7,24 @@ namespace ctr
 
 // ─── Constructors ─────────────────────────────────────────────────────────────
 
-Segment::Segment(const std::array<const Tube *, NUM_TUBES> &tubes, const blaze::StaticVector<double, NUM_TUBES> &beta)
+Segment::Segment(const std::array<Tube, NUM_TUBES> &tubes, const blaze::StaticVector<double, NUM_TUBES> &beta)
 {
     recalculateSegments(tubes, beta);
 }
 
 // ─── Private: recalculate (called by CTR via friend) ──────────────────────────
 
-void Segment::recalculateSegments(const std::array<const Tube *, NUM_TUBES> &tubes,
+void Segment::recalculateSegments(const std::array<Tube, NUM_TUBES> &tubes,
                                   const blaze::StaticVector<double, NUM_TUBES> &beta)
 {
-    const blaze::StaticVector<double, NUM_TUBES> tb_len = {tubes[0]->getTubeLength(), tubes[1]->getTubeLength(),
-                                                           tubes[2]->getTubeLength()};
-
     m_S.clear();
     m_S.reserve(2UL * NUM_TUBES + 1UL);
     m_S.emplace_back(0.0);
 
     for (std::size_t i = 0; i < NUM_TUBES; ++i)
     {
-        m_dist_end[i] = tb_len[i] + beta[i];
-        m_len_curv[i] = m_dist_end[i] - tubes[i]->getCurvLen();
+        m_dist_end[i] = tubes[i].getTubeLength() + beta[i];
+        m_len_curv[i] = m_dist_end[i] - tubes[i].getCurvLen();
 
         m_S.emplace_back(m_len_curv[i]);
         m_S.emplace_back(m_dist_end[i]);
@@ -63,25 +60,20 @@ void Segment::recalculateSegments(const std::array<const Tube *, NUM_TUBES> &tub
         const std::size_t c = static_cast<std::size_t>(std::distance(sBegin, it_c));
 
         // Fill bending and torsional stiffness for all segments where tube i is present.
-        blaze::submatrix(m_EI, i, 0UL, 1UL, c) = tubes[i]->getK(Stiffness::Bending);
-        blaze::submatrix(m_GJ, i, 0UL, 1UL, c) = tubes[i]->getK(Stiffness::Torsion);
+        blaze::submatrix(m_EI, i, 0UL, 1UL, c) = tubes[i].getK(Stiffness::Bending);
+        blaze::submatrix(m_GJ, i, 0UL, 1UL, c) = tubes[i].getK(Stiffness::Torsion);
 
         // Fill pre-curvatures only over the curved portion.
         if (b != c)
         {
             const std::size_t span = c - b;
-            blaze::submatrix(m_U_x, i, b, 1UL, span) = tubes[i]->get_u_ast(0UL);
-            blaze::submatrix(m_U_y, i, b, 1UL, span) = tubes[i]->get_u_ast(1UL);
+            blaze::submatrix(m_U_x, i, b, 1UL, span) = tubes[i].get_u_ast(0UL);
+            blaze::submatrix(m_U_y, i, b, 1UL, span) = tubes[i].get_u_ast(1UL);
         }
     }
 }
 
 // ─── Getters ─────────────────────────────────────────────────────────────────
-
-SegmentData Segment::getParameters() const noexcept
-{
-    return {m_EI, m_GJ, m_U_x, m_U_y, m_S};
-}
 
 const std::vector<double> &Segment::getTransitionPoints() const noexcept
 {

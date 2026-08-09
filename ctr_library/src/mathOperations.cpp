@@ -1,7 +1,7 @@
-#include "mathOperations.hpp"
+#include "ctr/detail/mathOperations.hpp"
 #include <iostream>
 
-namespace mathOp
+namespace ctr::math
 {
 
 /**
@@ -27,7 +27,7 @@ blaze::DynamicMatrix<double, blaze::columnMajor> pInv(blaze::DynamicMatrix<doubl
     }
     catch (const std::exception &e)
     {
-        std::cerr << "mathOp::pInv — Blaze SVD failed: " << e.what() << '\n';
+        std::cerr << "ctr::math::pInv — Blaze SVD failed: " << e.what() << '\n';
         // Return a zero matrix of the transposed shape so callers do not crash.
         return blaze::DynamicMatrix<double, blaze::columnMajor>(Mcm.columns(), Mcm.rows(), 0.0);
     }
@@ -44,4 +44,4 @@ blaze::DynamicMatrix<double, blaze::columnMajor> pInv(blaze::DynamicMatrix<doubl
     return blaze::trans(blaze::evaluate(U * S_inv * V));
 }
 
-} // namespace mathOp
+} // namespace ctr::math

@@ -97,3 +97,11 @@ add_subdirectory(ctr_library)
 if(CTR_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
+
+if(PROJECT_IS_TOP_LEVEL AND BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
+
+if(CTR_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()

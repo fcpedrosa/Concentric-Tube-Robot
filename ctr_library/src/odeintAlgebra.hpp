@@ -1,13 +1,11 @@
 #pragma once
 
-#include <boost/numeric/odeint.hpp>
-#include <boost/numeric/odeint/algebra/vector_space_algebra.hpp>
-#include "CTRTypes.hpp"
+// PRIVATE header — Boost.Odeint glue for Blaze state vectors. Not installed;
+// scheduled for removal when the integrator moves to a hand-driven
+// fixed-step loop.
 
-// Convenience alias used in the stepper template arguments in CTR.cpp.
-// Identical to ctr::state_type — kept global so the stepper type declaration
-// remains readable without a fully qualified name.
-using State = ctr::state_type;
+#include <boost/numeric/odeint.hpp>
+#include "ctr/Types.hpp"
 
 namespace ctr
 {
