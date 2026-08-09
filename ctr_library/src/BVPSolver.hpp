@@ -22,24 +22,30 @@ namespace detail
 /// Maximum magnitude of torsional curvature used to clamp an initial BVP guess.
 inline constexpr double kMaxBVPTwist = 50.0;
 
+/// Maximum magnitude of the proximal bending-moment components of a BVP guess
+/// [N·m] — generous for sub-millimeter tubes (EI ~ 1e-3 N·m²).
+inline constexpr double kMaxBVPMoment = 1.0;
+
 /**
  * @brief Clamps a BVP initial guess to a physically reasonable range.
  *
- * Zeroes the moment components (indices 0-1) and clamps torsional-curvature
- * components (indices 2-4) to [-kMaxBVPTwist, kMaxBVPTwist]. Non-finite
- * values are replaced by 0.
+ * Non-finite values are replaced by 0; moments (indices 0-1) are clamped to
+ * ±kMaxBVPMoment and torsional curvatures (indices 2-4) to ±kMaxBVPTwist.
+ *
+ * The moment components are deliberately NOT zeroed: with a distal load the
+ * proximal bending moment is nonzero, and zeroing would both make loaded
+ * BVPs unsolvable and destroy warm starts.
  */
 inline void sanitizeBVPGuess(bvp_type &x) noexcept
 {
-    for (std::size_t i = 2UL; i < BVP_DIM; ++i)
+    for (std::size_t i = 0UL; i < BVP_DIM; ++i)
     {
         auto v = x[i];
         if (!std::isfinite(v))
             v = 0.0;
-        x[i] = std::clamp(v, -kMaxBVPTwist, kMaxBVPTwist);
+        const double bound = (i < 2UL) ? kMaxBVPMoment : kMaxBVPTwist;
+        x[i] = std::clamp(v, -bound, bound);
     }
-    x[0UL] = 0.0;
-    x[1UL] = 0.0;
 }
 
 } // namespace detail

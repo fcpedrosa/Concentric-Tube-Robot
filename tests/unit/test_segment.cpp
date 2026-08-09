@@ -33,6 +33,27 @@ TEST_CASE("Segment decomposition of the reference robot at home", "[unit][segmen
     CHECK_THAT(dist[2UL], WithinAbs(0.05, 1e-9));
 }
 
+TEST_CASE("Segment clamps transition points to non-negative arc length", "[unit][segment]")
+{
+    const auto tubes = testing::makeReferenceTubes();
+    // Tube 1 retracted so far that its curved section starts inside the
+    // actuation unit: len_curv_1 = 0.25 - 0.21 - 0.06 = -0.02 -> clamped to 0.
+    const blaze::StaticVector<double, NUM_TUBES> beta = {-210.0e-3, -100.0e-3, -80.0e-3};
+
+    const Segment seg(tubes, beta);
+    const auto &S = seg.getTransitionPoints();
+
+    REQUIRE_FALSE(S.empty());
+    CHECK(S.front() == 0.0);
+    for (const double s : S)
+        CHECK(s >= 0.0);
+    CHECK(std::is_sorted(S.begin(), S.end()));
+
+    const auto &dist = seg.getDistalEnds();
+    for (std::size_t i = 0; i < NUM_TUBES; ++i)
+        CHECK(dist[i] >= 0.0);
+}
+
 TEST_CASE("Segment stiffness/pre-curvature matrices honor tube presence", "[unit][segment]")
 {
     const auto tubes = testing::makeReferenceTubes();

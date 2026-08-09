@@ -1,17 +1,133 @@
 // Cross-validation of the BVP solver suite and externally-loaded cases.
-// Enabled once the solver fixes land (sanitizer no longer zeroes the moment
-// unknowns; Broyden/dog-leg updates corrected).
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include "TestRobot.hpp"
 
+#include <array>
+#include <vector>
+
+using namespace ctr;
+using Catch::Matchers::WithinAbs;
+
+namespace
+{
+
+std::vector<blaze::StaticVector<double, 6UL>> configGrid()
+{
+    std::vector<blaze::StaticVector<double, 6UL>> grid;
+    const std::array<double, 3UL> alphas2 = {0.0, math::deg2Rad(60.0), math::deg2Rad(170.0)};
+    const std::array<double, 3UL> alphas3 = {0.0, math::deg2Rad(-45.0), math::deg2Rad(120.0)};
+
+    for (const double a2 : alphas2)
+        for (const double a3 : alphas3)
+        {
+            blaze::StaticVector<double, 6UL> q = testing::kHomeConfig;
+            q[4UL] = a2;
+            q[5UL] = a3;
+            grid.push_back(q);
+        }
+
+    // One configuration with different retractions.
+    blaze::StaticVector<double, 6UL> q = {-100.0e-3, -85.0e-3, -70.0e-3, 0.0, math::deg2Rad(90.0),
+                                          math::deg2Rad(-120.0)};
+    grid.push_back(q);
+    return grid;
+}
+
+constexpr std::array<RootFindingMethod, 4UL> kAllMethods = {
+    RootFindingMethod::ModifiedNewtonRaphson, RootFindingMethod::LevenbergMarquardt, RootFindingMethod::PowellDogLeg,
+    RootFindingMethod::Broyden};
+
+} // namespace
+
 TEST_CASE("All solvers agree on the converged shooting solution", "[regression][solvers]")
 {
-    SKIP("enabled with the solver-fixes phase");
+    const auto grid = configGrid();
+
+    for (const auto &q : grid)
+    {
+        CAPTURE(q[3UL], q[4UL], q[5UL], q[0UL]);
+
+        // Reference: default solver.
+        CTR reference = testing::makeReferenceRobot();
+        bvp_type guessRef{};
+        const FKResult fkRef = reference.actuate(q, guessRef);
+        REQUIRE(fkRef);
+        const auto tipRef = reference.tipPosition();
+
+        for (const RootFindingMethod method : kAllMethods)
+        {
+            CAPTURE(static_cast<int>(method));
+            CTR robot = testing::makeReferenceRobot(method);
+            bvp_type guess{};
+            const FKResult fk = robot.actuate(q, guess);
+            REQUIRE(fk);
+            CHECK(fk.residual <= testing::kBVPTol);
+
+            // Physical agreement: tips must match across solvers.
+            CHECK(testing::maxAbsDiff(robot.tipPosition(), tipRef) < 5.0e-6);
+            // Shooting-variable agreement (loose until the BVP is non-dimensionalized).
+            CHECK(blaze::linfNorm(guess - guessRef) < 1.0e-2);
+        }
+    }
 }
 
 TEST_CASE("Externally loaded robot converges (distal force)", "[regression][solvers][loaded]")
 {
-    SKIP("enabled with the solver-fixes phase");
+    for (const RootFindingMethod method :
+         {RootFindingMethod::ModifiedNewtonRaphson, RootFindingMethod::LevenbergMarquardt})
+    {
+        CAPTURE(static_cast<int>(method));
+
+        CTR robot = testing::makeReferenceRobot(method);
+        bvp_type guess{};
+        REQUIRE(robot.actuate(testing::kHomeConfig, guess));
+        const auto tipUnloaded = robot.tipPosition();
+
+        robot.setDistalForce({0.0, 0.02, 0.0}); // 20 mN lateral tip load
+        bvp_type guessLoaded{};
+        const FKResult fk = robot.actuate(testing::kHomeConfig, guessLoaded);
+        REQUIRE(fk);
+        CHECK(fk.residual <= testing::kBVPTol);
+
+        // The load must visibly deflect the tip...
+        CHECK(testing::maxAbsDiff(robot.tipPosition(), tipUnloaded) > 1.0e-4);
+        // ...and the tip must remain physically reachable.
+        CHECK(blaze::norm(robot.tipPosition()) <= 0.13 + 1e-9);
+    }
+}
+
+TEST_CASE("Loaded robot with distal moment converges", "[regression][solvers][loaded]")
+{
+    CTR robot = testing::makeReferenceRobot();
+    robot.setDistalMoment({0.0, 2.0e-3, 0.0}); // 2 mN·m distal moment
+
+    bvp_type guess{};
+    const FKResult fk = robot.actuate(testing::kHomeConfig, guess);
+    REQUIRE(fk);
+    CHECK(fk.residual <= testing::kBVPTol);
+    CHECK(blaze::isfinite(robot.tipPosition()));
+}
+
+TEST_CASE("Re-actuating at the converged guess is a fixed point", "[regression][solvers]")
+{
+    // Guards the line-search bookkeeping: the trajectory recorded by the solver
+    // must correspond exactly to the shooting vector it returns.
+    CTR robot = testing::makeReferenceRobot();
+    blaze::StaticVector<double, 6UL> q = testing::kHomeConfig;
+    q[4UL] = math::deg2Rad(60.0);
+    q[5UL] = math::deg2Rad(120.0);
+
+    bvp_type guess{};
+    REQUIRE(robot.actuate(q, guess));
+    const auto tip1 = robot.tipPosition();
+    const bvp_type guess1 = guess;
+
+    const FKResult fk2 = robot.actuate(q, guess);
+    REQUIRE(fk2);
+    CHECK(fk2.iterations == 0UL); // already converged — no Newton step needed
+    CHECK(testing::maxAbsDiff(robot.tipPosition(), tip1) < 1.0e-12);
+    CHECK(blaze::linfNorm(guess - guess1) < 1.0e-12);
 }

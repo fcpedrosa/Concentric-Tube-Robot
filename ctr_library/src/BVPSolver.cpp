@@ -3,6 +3,7 @@
 #include "ctr/detail/mathOperations.hpp"
 
 #include <cmath>
+#include <limits>
 
 namespace ctr
 {
@@ -85,7 +86,11 @@ FKResult PowellDogLegSolver::solve(bvp_type &initGuess, ShootingProblem &problem
         {
             x_new = initGuess + h_dl;
             f_new = problem.residual(x_new);
-            rho = (blaze::sqrNorm(f) - blaze::sqrNorm(f_new)) / (0.5 * blaze::trans(h_dl) * ((delta * h_dl) - g));
+            // Gain ratio = actual reduction / model-predicted reduction, with the
+            // Gauss-Newton model L(h) = ||f + J h||²: predicted = ||f||² − ||f + J h_dl||².
+            const double predictedReduction = blaze::sqrNorm(f) - blaze::sqrNorm(f + J * h_dl);
+            rho = (blaze::sqrNorm(f) - blaze::sqrNorm(f_new)) /
+                  std::max(predictedReduction, std::numeric_limits<double>::min());
 
             if (rho > 0.0)
             {
@@ -167,16 +172,15 @@ FKResult LevenbergMarquardtSolver::solve(bvp_type &initGuess, ShootingProblem &p
 
 FKResult BroydenSolver::solve(bvp_type &initGuess, ShootingProblem &problem)
 {
-    bool found;
     sanitizeBVPGuess(initGuess);
 
-    Mat<BVP_DIM, BVP_DIM> JacInv, JacInvNew;
+    Mat<BVP_DIM, BVP_DIM> JacInv;
     bvp_type F, Fold, X, Xold, deltaX, deltaF;
 
-    F = problem.residual(initGuess);
-    X = std::move(initGuess);
-    JacInvNew = JacInv = math::pInv(problem.jacobian(X, F));
-    found = (blaze::linfNorm(F) <= problem.tolerance());
+    X = initGuess;
+    F = problem.residual(X);
+    JacInv = math::pInv(problem.jacobian(X, F));
+    bool found = (blaze::linfNorm(F) <= problem.tolerance());
 
     std::size_t k = 0UL;
     constexpr std::size_t k_max = 300UL;
@@ -184,39 +188,44 @@ FKResult BroydenSolver::solve(bvp_type &initGuess, ShootingProblem &problem)
     {
         k++;
 
-        deltaX = X - Xold;
-        deltaF = F - Fold;
-
-        JacInv = std::move(JacInvNew);
-        if ((blaze::norm(deltaX) > 0.0) && (blaze::norm(deltaF) > 0.0))
-            JacInvNew = JacInv + ((deltaX - JacInv * deltaF) / (blaze::trans(deltaX) * JacInv * deltaF)) *
-                                     blaze::trans(deltaX) * JacInv;
-        else
-            JacInvNew = JacInv;
-
-        Xold = std::move(X);
-        Fold = std::move(F);
-        X = Xold - JacInv * F;
+        // Quasi-Newton step with the CURRENT inverse Jacobian.
+        Xold = X;
+        Fold = F;
+        X = Xold - JacInv * Fold;
         F = problem.residual(X);
 
-        while (blaze::isnan(F))
+        // Bounded recovery from a non-finite residual.
+        std::size_t recovery = 0UL;
+        while (!blaze::isfinite(F))
         {
+            if (++recovery > 20UL)
+            {
+                initGuess = std::move(X);
+                return {SolverStatus::NumericalError, k, blaze::linfNorm(Fold)};
+            }
             X *= 0.75;
             sanitizeBVPGuess(X);
             F = problem.residual(X);
-            JacInv = JacInvNew = math::pInv(problem.jacobian(X, F));
-            Xold = std::move(X);
-            X = Xold - JacInv * F;
+            JacInv = math::pInv(problem.jacobian(X, F));
         }
 
-        if (k % 10 == 0)
+        if (k % 10UL == 0UL)
         {
-            JacInv = JacInvNew = math::pInv(problem.jacobian(X, F));
-            X = Xold - JacInv * F;
+            // Periodic exact refresh keeps the update from drifting.
+            JacInv = math::pInv(problem.jacobian(X, F));
+        }
+        else
+        {
+            // Sherman-Morrison ("good Broyden") inverse update:
+            //   JacInv += (dx - JacInv*dF) dxᵀ JacInv / (dxᵀ JacInv dF)
+            deltaX = X - Xold;
+            deltaF = F - Fold;
+            const double denom = blaze::trans(deltaX) * (JacInv * deltaF);
+            if ((blaze::sqrNorm(deltaX) > 0.0) && (std::fabs(denom) > 1.0e-300))
+                JacInv += ((deltaX - JacInv * deltaF) / denom) * (blaze::trans(deltaX) * JacInv);
         }
 
-        if (blaze::linfNorm(F) <= problem.tolerance())
-            found = true;
+        found = (blaze::linfNorm(F) <= problem.tolerance());
     }
 
     initGuess = std::move(X);
@@ -237,11 +246,10 @@ FKResult ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, ShootingProblem
     bvp_type f(problem.residual(initGuess)), d;
     blaze::StaticVector<double, BVP_DIM, blaze::rowVector> Dh;
     Mat<BVP_DIM, BVP_DIM> D, D_inv;
-    double h, h_0, lambda, gamma, improvementFactor, d_norm, Dh_norm;
+    double h, h_0, gamma, improvementFactor, d_norm, Dh_norm;
     std::size_t j = 0UL, k = 0UL;
     constexpr std::size_t k_max = 300UL;
-    std::vector<double> h_k;
-    h_k.reserve(k_max);
+    constexpr std::size_t j_max = 60UL; // 0.5^60 ~ 1e-18: step is numerically nil
 
     found = (blaze::linfNorm(f) <= problem.tolerance());
 
@@ -274,7 +282,12 @@ FKResult ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, ShootingProblem
     {
         k++;
         setupMethod();
+        j = 0UL;
 
+        // Armijo backtracking: find the largest step 0.5^j that sufficiently
+        // decreases ||f||². The accepted step below uses exactly this j, so the
+        // residue f (and the recorded backbone trajectory) always corresponds
+        // to the point the iterate actually moves to.
         while (true)
         {
             f = problem.residual(initGuess - blaze::pow(0.5, j) * d);
@@ -294,18 +307,13 @@ FKResult ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, ShootingProblem
 
             h = blaze::sqrNorm(f);
             improvementFactor = blaze::pow(0.5, j) * 0.25 * gamma * d_norm * Dh_norm;
-            h_k.push_back(h);
 
-            if (h <= (h_0 - improvementFactor))
+            if ((h <= (h_0 - improvementFactor)) || (j >= j_max))
                 break;
-            else
-                j++;
+            j++;
         }
 
-        lambda = blaze::pow(0.5, static_cast<double>(h_k.size() - 1UL));
-        initGuess -= lambda * d;
-        h_k.clear();
-        j = 0UL;
+        initGuess -= blaze::pow(0.5, j) * d;
 
         if (blaze::linfNorm(f) <= problem.tolerance())
             return makeResult(true, k, f);

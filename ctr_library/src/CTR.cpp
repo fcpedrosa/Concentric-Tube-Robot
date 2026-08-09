@@ -172,7 +172,9 @@ bvp_type CTR::residual(const bvp_type &initGuess)
     auto computeResidue = [&](double distalEnd, std::size_t index) -> void
     {
         auto itt = std::lower_bound(m_s.begin(), m_s.end(), distalEnd - 1.0E-7);
-        const auto id = static_cast<std::size_t>(std::distance(m_s.begin(), itt));
+        // Clamp: lower_bound may return end() if the distal end exceeds the last
+        // sample by more than the tolerance (defensive — S.back() == max distal end).
+        const auto id = std::min(static_cast<std::size_t>(std::distance(m_s.begin(), itt)), m_s.size() - 1UL);
         Residue[2UL + index] = m_y[id][UZ_1 + index];
     };
 
@@ -378,7 +380,7 @@ IKResult CTR::solveIK(const blaze::StaticVector<double, 3UL> &target, double pos
 
         q += dqdt;
         blaze::subvector<3UL, NUM_TUBES>(q) =
-            blaze::map(blaze::subvector<3UL, NUM_TUBES>(q), [](double theta) { return math::congruentAngle(theta); });
+            blaze::map(blaze::subvector<3UL, NUM_TUBES>(q), [](double theta) { return math::wrapToPi(theta); });
 
         fk = actuate(q, initGuess);
 

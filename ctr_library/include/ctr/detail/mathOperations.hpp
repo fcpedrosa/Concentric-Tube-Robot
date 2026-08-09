@@ -24,15 +24,20 @@ inline constexpr double deg2Rad(double degree)
 }
 
 /**
- * @brief Computes the closest congruent of an angle within the [0, 3Pi] interval.
+ * @brief Wraps an angle to the interval (-π, π] by subtracting an exact
+ *        multiple of 2π.
+ *
+ * Because the reduction is an exact 2π-congruence (up to floating-point
+ * rounding), any 2π-periodic function of the angle — in particular the CTR
+ * forward kinematics as a function of the tube rotations α — is invariant
+ * under this wrap.
  *
  * @param angle Angle in radians.
- * @return The corresponding closest congruent angle in radians within [0, 3Pi].
+ * @return The congruent angle in (-π, π].
  */
-inline double congruentAngle(double angle)
+inline double wrapToPi(double angle) noexcept
 {
-    constexpr double THREE_PI = 3.00 * std::numbers::pi;
-    return std::fmod(std::fabs(angle), THREE_PI) * (angle < 0.00 ? -1.00 : 1.00);
+    return std::remainder(angle, 2.0 * std::numbers::pi);
 }
 
 /**

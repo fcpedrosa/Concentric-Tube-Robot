@@ -23,8 +23,11 @@ void Segment::recalculateSegments(const std::array<Tube, NUM_TUBES> &tubes,
 
     for (std::size_t i = 0; i < NUM_TUBES; ++i)
     {
-        m_dist_end[i] = tubes[i].getTubeLength() + beta[i];
-        m_len_curv[i] = m_dist_end[i] - tubes[i].getCurvLen();
+        // Clamp to s >= 0: a tube's curved section (or, degenerately, the whole
+        // tube) may be retracted into the actuation unit; the integrated
+        // backbone always starts at the robot base s = 0.
+        m_dist_end[i] = std::max(0.0, tubes[i].getTubeLength() + beta[i]);
+        m_len_curv[i] = std::max(0.0, m_dist_end[i] - tubes[i].getCurvLen());
 
         m_S.emplace_back(m_len_curv[i]);
         m_S.emplace_back(m_dist_end[i]);

@@ -14,6 +14,29 @@ TEST_CASE("deg2Rad converts correctly", "[unit][math]")
     STATIC_CHECK(math::deg2Rad(0.0) == 0.0);
 }
 
+TEST_CASE("wrapToPi is an exact 2*pi congruence into the pi-interval", "[unit][math]")
+{
+    constexpr double pi = std::numbers::pi;
+
+    CHECK_THAT(math::wrapToPi(3.5 * pi), WithinAbs(-0.5 * pi, 1e-12));
+    CHECK_THAT(math::wrapToPi(-3.5 * pi), WithinAbs(0.5 * pi, 1e-12));
+    CHECK_THAT(math::wrapToPi(0.3), WithinAbs(0.3, 1e-15));
+    CHECK_THAT(math::wrapToPi(-0.3), WithinAbs(-0.3, 1e-15));
+    CHECK_THAT(math::wrapToPi(2.0 * pi), WithinAbs(0.0, 1e-12));
+    CHECK_THAT(math::wrapToPi(100.0), WithinAbs(100.0 - 32.0 * pi, 1e-10));
+
+    // Range check over a sweep.
+    for (double a = -50.0; a <= 50.0; a += 0.37)
+    {
+        const double w = math::wrapToPi(a);
+        CHECK(w <= pi + 1e-12);
+        CHECK(w >= -pi - 1e-12);
+        // congruence: difference is an integer multiple of 2 pi
+        const double kk = (a - w) / (2.0 * pi);
+        CHECK_THAT(kk, WithinAbs(std::round(kk), 1e-9));
+    }
+}
+
 TEST_CASE("euler2Quaternion + getSO3 reproduce a z-rotation", "[unit][math]")
 {
     const double theta = 0.73;
