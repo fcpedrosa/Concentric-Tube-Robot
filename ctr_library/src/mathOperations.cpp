@@ -1,7 +1,8 @@
 #include "mathOperations.hpp"
 #include <iostream>
 
-namespace mathOp {
+namespace mathOp
+{
 
 /**
  * @brief Damped least-squares pseudo-inverse via SVD.
@@ -15,8 +16,7 @@ namespace mathOp {
  * expensive Blaze SVD instantiation from being compiled into every translation
  * unit that includes mathOperations.hpp.
  */
-blaze::DynamicMatrix<double, blaze::columnMajor>
-pInv(blaze::DynamicMatrix<double, blaze::columnMajor> Mcm)
+blaze::DynamicMatrix<double, blaze::columnMajor> pInv(blaze::DynamicMatrix<double, blaze::columnMajor> Mcm)
 {
     blaze::DynamicMatrix<double, blaze::columnMajor> U, V;
     blaze::DynamicVector<double> s;

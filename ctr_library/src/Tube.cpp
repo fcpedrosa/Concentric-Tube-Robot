@@ -1,23 +1,21 @@
 #include "Tube.hpp"
 #include <cassert>
 
-namespace ctr {
+namespace ctr
+{
 
 // ─── Constructors ─────────────────────────────────────────────────────────────
 
-Tube::Tube()
-    : m_OD(0.0), m_ID(0.0), m_E(0.0), m_G(0.0),
-      m_ls(0.0), m_lc(0.0), m_u_ast(0.0)
-{}
+Tube::Tube() : m_OD(0.0), m_ID(0.0), m_E(0.0), m_G(0.0), m_ls(0.0), m_lc(0.0), m_u_ast(0.0) {}
 
 Tube::Tube(double OD, double ID, double E, double G, double ls, double lc,
            const blaze::StaticVector<double, 3UL> &u_ast)
     : m_OD(OD), m_ID(ID), m_E(E), m_G(G), m_ls(ls), m_lc(lc), m_u_ast(u_ast)
 {
-    assert(OD > ID   && "Tube: outer diameter must exceed inner diameter");
-    assert(ID > 0.0  && "Tube: inner diameter must be positive");
-    assert(E  > 0.0  && "Tube: Young's modulus must be positive");
-    assert(G  > 0.0  && "Tube: shear modulus must be positive");
+    assert(OD > ID && "Tube: outer diameter must exceed inner diameter");
+    assert(ID > 0.0 && "Tube: inner diameter must be positive");
+    assert(E > 0.0 && "Tube: Young's modulus must be positive");
+    assert(G > 0.0 && "Tube: shear modulus must be positive");
     assert((ls + lc) > 0.0 && "Tube: total tube length must be positive");
 }
 
@@ -59,20 +57,21 @@ double Tube::getK(Stiffness s) const noexcept
     const double csf = crossSectionFactor();
     switch (s)
     {
-    case Stiffness::Bending: return m_E * pi_64 * csf;
-    case Stiffness::Torsion: return m_G * pi_32 * csf;
+    case Stiffness::Bending:
+        return m_E * pi_64 * csf;
+    case Stiffness::Torsion:
+        return m_G * pi_32 * csf;
     }
     return 0.0; // unreachable — satisfies compiler
 }
 
-blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>>
-Tube::getK_Matrix() const noexcept
+blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> Tube::getK_Matrix() const noexcept
 {
     blaze::DiagonalMatrix<blaze::StaticMatrix<double, 3UL, 3UL, blaze::rowMajor>> K;
     const double EI = getK(Stiffness::Bending);
     const double GJ = getK(Stiffness::Torsion);
     K(0UL, 0UL) = K(1UL, 1UL) = EI;
-    K(2UL, 2UL)                = GJ;
+    K(2UL, 2UL) = GJ;
     return K;
 }
 
@@ -93,8 +92,10 @@ void Tube::setK(double EI, double GJ) noexcept
 {
     // Back-compute E and G from the given stiffness values.
     const double csf = crossSectionFactor();
-    if (const double I = pi_64 * csf; I > 0.0) m_E = EI / I;
-    if (const double J = pi_32 * csf; J > 0.0) m_G = GJ / J;
+    if (const double I = pi_64 * csf; I > 0.0)
+        m_E = EI / I;
+    if (const double J = pi_32 * csf; J > 0.0)
+        m_G = GJ / J;
 }
 
 void Tube::setBendingK(double EI) noexcept

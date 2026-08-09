@@ -8,7 +8,8 @@
 #include <cmath>
 #include <vector>
 
-namespace ctr {
+namespace ctr
+{
 
 // ─── Utility shared by all solvers ───────────────────────────────────────────
 
@@ -42,8 +43,8 @@ bool PowellDogLegSolver::solve(bvp_type &initGuess, CTR &ctr)
         k++;
 
         alpha = blaze::sqrNorm(g) / blaze::sqrNorm(J * g);
-        h_sd  = -alpha * g;
-        h_gn  = -mathOp::pInv(J) * f;
+        h_sd = -alpha * g;
+        h_gn = -mathOp::pInv(J) * f;
 
         if (blaze::norm(h_gn) <= delta)
             h_dl = h_gn;
@@ -55,9 +56,13 @@ bool PowellDogLegSolver::solve(bvp_type &initGuess, CTR &ctr)
             {
                 c = blaze::trans(h_sd) * (h_gn - h_sd);
                 if (c <= 0.0)
-                    beta = (-c + std::sqrt(c * c + blaze::sqrNorm(h_gn - h_sd) * (delta * delta - blaze::sqrNorm(h_sd)))) / blaze::sqrNorm(h_gn - h_sd);
+                    beta =
+                        (-c + std::sqrt(c * c + blaze::sqrNorm(h_gn - h_sd) * (delta * delta - blaze::sqrNorm(h_sd)))) /
+                        blaze::sqrNorm(h_gn - h_sd);
                 else
-                    beta = (delta * delta - blaze::sqrNorm(h_sd)) / (c + std::sqrt(c * c + blaze::sqrNorm(h_gn - h_sd) * (delta * delta - blaze::sqrNorm(h_sd))));
+                    beta =
+                        (delta * delta - blaze::sqrNorm(h_sd)) /
+                        (c + std::sqrt(c * c + blaze::sqrNorm(h_gn - h_sd) * (delta * delta - blaze::sqrNorm(h_sd))));
                 h_dl = h_sd + beta * (h_gn - h_sd);
             }
         }
@@ -68,14 +73,14 @@ bool PowellDogLegSolver::solve(bvp_type &initGuess, CTR &ctr)
         {
             x_new = initGuess + h_dl;
             f_new = ctr.ODESolver(x_new);
-            rho   = (blaze::sqrNorm(f) - blaze::sqrNorm(f_new)) / (0.5 * blaze::trans(h_dl) * ((delta * h_dl) - g));
+            rho = (blaze::sqrNorm(f) - blaze::sqrNorm(f_new)) / (0.5 * blaze::trans(h_dl) * ((delta * h_dl) - g));
 
             if (rho > 0.0)
             {
                 initGuess = std::move(x_new);
-                f         = std::move(f_new);
-                J         = ctr.jac_BVP(initGuess, f);
-                g         = blaze::trans(J) * f;
+                f = std::move(f_new);
+                J = ctr.jac_BVP(initGuess, f);
+                g = blaze::trans(J) * f;
                 if ((blaze::linfNorm(f) <= ctr.accuracy()) || (blaze::linfNorm(g) <= eps1))
                     found = true;
             }
@@ -107,12 +112,12 @@ bool LevenbergMarquardtSolver::solve(bvp_type &initGuess, CTR &ctr)
 
     sanitizeBVPGuess(initGuess);
 
-    f    = ctr.ODESolver(initGuess);
-    J    = ctr.jac_BVP(initGuess, f);
-    A    = blaze::trans(J) * J;
-    g    = blaze::trans(J) * f;
+    f = ctr.ODESolver(initGuess);
+    J = ctr.jac_BVP(initGuess, f);
+    A = blaze::trans(J) * J;
+    g = blaze::trans(J) * f;
     found = (blaze::linfNorm(g) <= e1);
-    mu   = tau * blaze::max(blaze::diagonal(A));
+    mu = tau * blaze::max(blaze::diagonal(A));
 
     while (!found && (k < k_max))
     {
@@ -120,18 +125,18 @@ bool LevenbergMarquardtSolver::solve(bvp_type &initGuess, CTR &ctr)
         blaze::solve(blaze::declsym(A + (mu * I)), h, -g);
 
         f_new = ctr.ODESolver(initGuess + h);
-        rho   = (blaze::sqrNorm(f) - blaze::sqrNorm(f_new)) / (0.5 * blaze::trans(h) * ((mu * h) - g));
+        rho = (blaze::sqrNorm(f) - blaze::sqrNorm(f_new)) / (0.5 * blaze::trans(h) * ((mu * h) - g));
 
         if (rho > 0.0)
         {
             initGuess += h;
-            J     = ctr.jac_BVP(initGuess, f_new);
-            A     = blaze::trans(J) * J;
-            f     = std::move(f_new);
-            g     = blaze::trans(J) * f;
+            J = ctr.jac_BVP(initGuess, f_new);
+            A = blaze::trans(J) * J;
+            f = std::move(f_new);
+            g = blaze::trans(J) * f;
             found = (blaze::linfNorm(g) <= e1);
-            mu    = mu * std::max(0.33333333, 1.0 - blaze::pow(2.0 * rho - 1.0, 3.0));
-            nu    = 2.0;
+            mu = mu * std::max(0.33333333, 1.0 - blaze::pow(2.0 * rho - 1.0, 3.0));
+            nu = 2.0;
         }
         else
         {
@@ -156,10 +161,10 @@ bool BroydenSolver::solve(bvp_type &initGuess, CTR &ctr)
     blaze::StaticMatrix<double, BVP_DIM, BVP_DIM, blaze::columnMajor> JacInv, JacInvNew;
     bvp_type F, Fold, X, Xold, deltaX, deltaF;
 
-    F         = ctr.ODESolver(initGuess);
-    X         = std::move(initGuess);
+    F = ctr.ODESolver(initGuess);
+    X = std::move(initGuess);
     JacInvNew = JacInv = mathOp::pInv(ctr.jac_BVP(X, F));
-    found     = (blaze::linfNorm(F) <= ctr.accuracy());
+    found = (blaze::linfNorm(F) <= ctr.accuracy());
 
     std::size_t k = 0UL;
     constexpr std::size_t k_max = 300UL;
@@ -172,23 +177,24 @@ bool BroydenSolver::solve(bvp_type &initGuess, CTR &ctr)
 
         JacInv = std::move(JacInvNew);
         if ((blaze::norm(deltaX) > 0.0) && (blaze::norm(deltaF) > 0.0))
-            JacInvNew = JacInv + ((deltaX - JacInv * deltaF) / (blaze::trans(deltaX) * JacInv * deltaF)) * blaze::trans(deltaX) * JacInv;
+            JacInvNew = JacInv + ((deltaX - JacInv * deltaF) / (blaze::trans(deltaX) * JacInv * deltaF)) *
+                                     blaze::trans(deltaX) * JacInv;
         else
             JacInvNew = JacInv;
 
         Xold = std::move(X);
         Fold = std::move(F);
-        X    = Xold - JacInv * F;
-        F    = ctr.ODESolver(X);
+        X = Xold - JacInv * F;
+        F = ctr.ODESolver(X);
 
         while (blaze::isnan(F))
         {
             X *= 0.75;
             sanitizeBVPGuess(X);
-            F         = ctr.ODESolver(X);
-            JacInv    = JacInvNew = mathOp::pInv(ctr.jac_BVP(X, F));
-            Xold      = std::move(X);
-            X         = Xold - JacInv * F;
+            F = ctr.ODESolver(X);
+            JacInv = JacInvNew = mathOp::pInv(ctr.jac_BVP(X, F));
+            Xold = std::move(X);
+            X = Xold - JacInv * F;
         }
 
         if (k % 10 == 0)
@@ -215,10 +221,10 @@ bool BroydenIISolver::solve(bvp_type &initGuess, CTR &ctr)
     blaze::StaticMatrix<double, BVP_DIM, BVP_DIM, blaze::columnMajor> Jac, JacNew;
     bvp_type F, Fold, X, Xold, deltaX, deltaF;
 
-    F      = ctr.ODESolver(initGuess);
-    X      = std::move(initGuess);
+    F = ctr.ODESolver(initGuess);
+    X = std::move(initGuess);
     JacNew = ctr.jac_BVP(initGuess, F);
-    found  = (blaze::linfNorm(F) <= ctr.accuracy());
+    found = (blaze::linfNorm(F) <= ctr.accuracy());
 
     std::size_t k = 0UL;
     constexpr std::size_t k_max = 300UL;
@@ -237,17 +243,17 @@ bool BroydenIISolver::solve(bvp_type &initGuess, CTR &ctr)
 
         Xold = std::move(X);
         Fold = std::move(F);
-        X    = Xold - mathOp::pInv(Jac) * F;
-        F    = ctr.ODESolver(X);
+        X = Xold - mathOp::pInv(Jac) * F;
+        F = ctr.ODESolver(X);
 
         while (blaze::isnan(F))
         {
             X *= 0.75;
             sanitizeBVPGuess(X);
-            F      = ctr.ODESolver(X);
+            F = ctr.ODESolver(X);
             JacNew = ctr.jac_BVP(X, F);
-            Xold   = std::move(X);
-            X      = Xold - mathOp::pInv(Jac) * F;
+            Xold = std::move(X);
+            X = Xold - mathOp::pInv(Jac) * F;
         }
 
         if (k % 10 == 0)
@@ -274,7 +280,7 @@ bool NewtonRaphsonSolver::solve(bvp_type &initGuess, CTR &ctr)
     sanitizeBVPGuess(initGuess);
 
     Residue = ctr.ODESolver(initGuess);
-    found   = (blaze::linfNorm(Residue) <= ctr.accuracy());
+    found = (blaze::linfNorm(Residue) <= ctr.accuracy());
 
     blaze::DiagonalMatrix<blaze::StaticMatrix<double, BVP_DIM, BVP_DIM, blaze::rowMajor>> Kp, Ki, Kd;
     blaze::StaticMatrix<double, BVP_DIM, BVP_DIM, blaze::columnMajor> jac_bvp;
@@ -288,16 +294,16 @@ bool NewtonRaphsonSolver::solve(bvp_type &initGuess, CTR &ctr)
     while (!found && (k < k_max))
     {
         k++;
-        jac_bvp   = ctr.jac_BVP(initGuess, Residue);
-        dGuess    = mathOp::pInv(jac_bvp) * (Kp * Residue + Ki * int_Residue + Kd * d_Residue);
+        jac_bvp = ctr.jac_BVP(initGuess, Residue);
+        dGuess = mathOp::pInv(jac_bvp) * (Kp * Residue + Ki * int_Residue + Kd * d_Residue);
         initGuess -= dGuess;
 
         sanitizeBVPGuess(initGuess);
 
-        Residue_new  = ctr.ODESolver(initGuess);
-        d_Residue    = Residue_new - Residue;
+        Residue_new = ctr.ODESolver(initGuess);
+        d_Residue = Residue_new - Residue;
         int_Residue += Residue_new;
-        Residue      = std::move(Residue_new);
+        Residue = std::move(Residue_new);
 
         if (blaze::linfNorm(Residue) <= ctr.accuracy())
             found = true;
@@ -340,15 +346,16 @@ bool ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, CTR &ctr)
             sanitizeBVPGuess(initGuess);
             f = ctr.ODESolver(initGuess);
             D = ctr.jac_BVP(initGuess, f);
-            if (++isfinite_guard > 100UL) break;
+            if (++isfinite_guard > 100UL)
+                break;
         }
 
-        D_inv   = mathOp::pInv(D);
-        d       = D_inv * f;
-        gamma   = 1.0 / (blaze::norm(D_inv) * blaze::norm(D));
-        h_0     = blaze::sqrNorm(f);
-        Dh      = 2.0 * blaze::trans(f) * D;
-        d_norm  = blaze::norm(d);
+        D_inv = mathOp::pInv(D);
+        d = D_inv * f;
+        gamma = 1.0 / (blaze::norm(D_inv) * blaze::norm(D));
+        h_0 = blaze::sqrNorm(f);
+        Dh = 2.0 * blaze::trans(f) * D;
+        d_norm = blaze::norm(d);
         Dh_norm = blaze::norm(Dh);
     };
 
@@ -374,7 +381,7 @@ bool ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, CTR &ctr)
                 }
             }
 
-            h                 = blaze::sqrNorm(f);
+            h = blaze::sqrNorm(f);
             improvementFactor = blaze::pow(0.5, j) * 0.25 * gamma * d_norm * Dh_norm;
             h_k.push_back(h);
 
@@ -384,7 +391,7 @@ bool ModifiedNewtonRaphsonSolver::solve(bvp_type &initGuess, CTR &ctr)
                 j++;
         }
 
-        lambda     = blaze::pow(0.5, static_cast<double>(h_k.size() - 1UL));
+        lambda = blaze::pow(0.5, static_cast<double>(h_k.size() - 1UL));
         initGuess -= lambda * d;
         h_k.clear();
         j = 0UL;

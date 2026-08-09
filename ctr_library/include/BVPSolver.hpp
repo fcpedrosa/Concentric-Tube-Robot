@@ -4,7 +4,8 @@
 #include "mathOperations.hpp"
 #include <memory>
 
-namespace ctr {
+namespace ctr
+{
 
 class CTR; // forward declaration — avoids circular #include with CTR.hpp
 
@@ -18,7 +19,7 @@ class CTR; // forward declaration — avoids circular #include with CTR.hpp
  */
 class BVPSolver
 {
-public:
+  public:
     virtual ~BVPSolver() = default;
 
     /**
@@ -36,42 +37,42 @@ public:
 /// Powell Dog-Leg trust-region solver.
 class PowellDogLegSolver final : public BVPSolver
 {
-public:
+  public:
     [[nodiscard]] bool solve(bvp_type &initGuess, CTR &ctr) override;
 };
 
 /// Levenberg-Marquardt damped-least-squares solver.
 class LevenbergMarquardtSolver final : public BVPSolver
 {
-public:
+  public:
     [[nodiscard]] bool solve(bvp_type &initGuess, CTR &ctr) override;
 };
 
 /// Broyden rank-1 quasi-Newton solver (inverse Jacobian update).
 class BroydenSolver final : public BVPSolver
 {
-public:
+  public:
     [[nodiscard]] bool solve(bvp_type &initGuess, CTR &ctr) override;
 };
 
 /// Broyden rank-1 quasi-Newton solver (direct Jacobian update).
 class BroydenIISolver final : public BVPSolver
 {
-public:
+  public:
     [[nodiscard]] bool solve(bvp_type &initGuess, CTR &ctr) override;
 };
 
 /// Classic Newton-Raphson solver with PID-damped update.
 class NewtonRaphsonSolver final : public BVPSolver
 {
-public:
+  public:
     [[nodiscard]] bool solve(bvp_type &initGuess, CTR &ctr) override;
 };
 
 /// Modified Newton-Raphson solver with Armijo line search.
 class ModifiedNewtonRaphsonSolver final : public BVPSolver
 {
-public:
+  public:
     [[nodiscard]] bool solve(bvp_type &initGuess, CTR &ctr) override;
 };
 

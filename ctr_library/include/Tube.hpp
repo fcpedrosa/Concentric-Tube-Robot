@@ -5,7 +5,8 @@
 #include <cassert>
 #include <blaze/Math.h>
 
-namespace ctr {
+namespace ctr
+{
 
 // ─── Tube stiffness selector ───────────────────────────────────────────────────
 
@@ -30,12 +31,12 @@ enum class Stiffness
  */
 struct TubeParams
 {
-    double OD;   ///< Outer diameter [m].
-    double ID;   ///< Inner diameter [m].
-    double E;    ///< Young's modulus [Pa].
-    double G;    ///< Shear modulus [Pa].
-    double ls;   ///< Length of the straight transmission section [m].
-    double lc;   ///< Length of the curved section [m].
+    double OD;                              ///< Outer diameter [m].
+    double ID;                              ///< Inner diameter [m].
+    double E;                               ///< Young's modulus [Pa].
+    double G;                               ///< Shear modulus [Pa].
+    double ls;                              ///< Length of the straight transmission section [m].
+    double lc;                              ///< Length of the curved section [m].
     blaze::StaticVector<double, 3UL> u_ast; ///< Pre-curvature vector [1/m].
 };
 
@@ -51,16 +52,16 @@ struct TubeParams
  */
 class Tube
 {
-private:
+  private:
     static constexpr double pi_64 = std::numbers::pi / 64.0; ///< π/64 — factor in I.
     static constexpr double pi_32 = std::numbers::pi / 32.0; ///< π/32 — factor in J.
 
-    double m_OD;  ///< Outer diameter [m].
-    double m_ID;  ///< Inner diameter [m].
-    double m_E;   ///< Young's modulus [Pa].
-    double m_G;   ///< Shear modulus [Pa].
-    double m_ls;  ///< Straight-section length [m].
-    double m_lc;  ///< Curved-section length [m].
+    double m_OD;                              ///< Outer diameter [m].
+    double m_ID;                              ///< Inner diameter [m].
+    double m_E;                               ///< Young's modulus [Pa].
+    double m_G;                               ///< Shear modulus [Pa].
+    double m_ls;                              ///< Straight-section length [m].
+    double m_lc;                              ///< Curved-section length [m].
     blaze::StaticVector<double, 3UL> m_u_ast; ///< Pre-curvature vector [1/m].
 
     /// Returns OD^4 − ID^4, shared by bending and torsional stiffness formulas.
@@ -71,7 +72,7 @@ private:
         return od2 * od2 - id2 * id2;
     }
 
-public:
+  public:
     // ─── Constructors / special members ──────────────────────────────────────
 
     /**
@@ -93,13 +94,12 @@ public:
      * @param lc    Curved-section length [m].
      * @param u_ast Pre-curvature vector [1/m].
      */
-    Tube(double OD, double ID, double E, double G, double ls, double lc,
-         const blaze::StaticVector<double, 3UL> &u_ast);
+    Tube(double OD, double ID, double E, double G, double ls, double lc, const blaze::StaticVector<double, 3UL> &u_ast);
 
-    ~Tube()                           = default;
-    Tube(const Tube &)                = default;
-    Tube(Tube &&) noexcept            = default;
-    Tube &operator=(const Tube &)     = default;
+    ~Tube() = default;
+    Tube(const Tube &) = default;
+    Tube(Tube &&) noexcept = default;
+    Tube &operator=(const Tube &) = default;
     Tube &operator=(Tube &&) noexcept = default;
 
     // ─── Validation ──────────────────────────────────────────────────────────

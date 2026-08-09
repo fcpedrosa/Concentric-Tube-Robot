@@ -9,7 +9,8 @@
 // remains readable without a fully qualified name.
 using State = ctr::state_type;
 
-namespace ctr {
+namespace ctr
+{
 
 /**
  * @brief Custom Boost.Odeint algebra that delegates element-wise operations
@@ -21,21 +22,15 @@ namespace ctr {
  */
 struct BlazeBVPAlgebra
 {
-    template <typename StateType>
-    static double norm_inf(const StateType &s)
-    {
-        return blaze::linfNorm(s);
-    }
+    template <typename StateType> static double norm_inf(const StateType &s) { return blaze::linfNorm(s); }
 
-    template <typename S1, typename S2, typename Op>
-    static void for_each2(S1 &s1, S2 &s2, Op op)
+    template <typename S1, typename S2, typename Op> static void for_each2(S1 &s1, S2 &s2, Op op)
     {
         for (std::size_t i = 0UL; i < s1.size(); ++i)
             op(s1[i], s2[i]);
     }
 
-    template <typename S1, typename S2, typename S3, typename Op>
-    static void for_each3(S1 &s1, S2 &s2, S3 &s3, Op op)
+    template <typename S1, typename S2, typename S3, typename Op> static void for_each3(S1 &s1, S2 &s2, S3 &s3, Op op)
     {
         for (std::size_t i = 0UL; i < s1.size(); ++i)
             op(s1[i], s2[i], s3[i]);

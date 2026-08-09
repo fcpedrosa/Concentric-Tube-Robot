@@ -4,18 +4,16 @@
 #include <algorithm>
 #include <cmath>
 
-namespace ctr {
+namespace ctr
+{
 
 // ─── Constructor & copy/move ─────────────────────────────────────────────────
 
-CTR::CTR(const std::array<std::shared_ptr<Tube>, NUM_TUBES> &Tb,
-         const blaze::StaticVector<double, 6UL> &q,
-         double Tol,
+CTR::CTR(const std::array<std::shared_ptr<Tube>, NUM_TUBES> &Tb, const blaze::StaticVector<double, 6UL> &q, double Tol,
          mathOp::rootFindingMethod method)
-    : m_Tubes(Tb), m_q(q), m_theta_0(0.0), m_h_0{1.0, 0.0, 0.0, 0.0},
-      m_wf(0.0), m_wm(0.0), m_accuracy(Tol), m_method(method),
-      m_segment(rawTubes(), blaze::subvector<0UL, NUM_TUBES>(q)),
-      m_stateEquations(), m_solver(makeBVPSolver(method))
+    : m_Tubes(Tb), m_q(q), m_theta_0(0.0), m_h_0{1.0, 0.0, 0.0, 0.0}, m_wf(0.0), m_wm(0.0), m_accuracy(Tol),
+      m_method(method), m_segment(rawTubes(), blaze::subvector<0UL, NUM_TUBES>(q)), m_stateEquations(),
+      m_solver(makeBVPSolver(method))
 {
     m_theta_0 = {0.0, q[4UL] - q[3UL], q[5UL] - q[4UL]};
     m_y.reserve(1000UL);
@@ -23,31 +21,30 @@ CTR::CTR(const std::array<std::shared_ptr<Tube>, NUM_TUBES> &Tb,
 }
 
 CTR::CTR(const CTR &rhs)
-    : m_Tubes(rhs.m_Tubes), m_q(rhs.m_q), m_theta_0(rhs.m_theta_0),
-      m_h_0(rhs.m_h_0), m_wf(rhs.m_wf), m_wm(rhs.m_wm),
+    : m_Tubes(rhs.m_Tubes), m_q(rhs.m_q), m_theta_0(rhs.m_theta_0), m_h_0(rhs.m_h_0), m_wf(rhs.m_wf), m_wm(rhs.m_wm),
       m_accuracy(rhs.m_accuracy), m_method(rhs.m_method),
-      m_segment(rhs.rawTubes(), blaze::subvector<0UL, NUM_TUBES>(rhs.m_q)),
-      m_stateEquations(), m_y(rhs.m_y), m_s(rhs.m_s),
-      m_solver(makeBVPSolver(rhs.m_method))
-{}
+      m_segment(rhs.rawTubes(), blaze::subvector<0UL, NUM_TUBES>(rhs.m_q)), m_stateEquations(), m_y(rhs.m_y),
+      m_s(rhs.m_s), m_solver(makeBVPSolver(rhs.m_method))
+{
+}
 
 CTR &CTR::operator=(const CTR &rhs)
 {
     if (this != &rhs)
     {
-        m_Tubes          = rhs.m_Tubes;
-        m_q              = rhs.m_q;
-        m_theta_0        = rhs.m_theta_0;
-        m_h_0            = rhs.m_h_0;
-        m_wf             = rhs.m_wf;
-        m_wm             = rhs.m_wm;
-        m_accuracy       = rhs.m_accuracy;
-        m_method         = rhs.m_method;
-        m_segment        = Segment(rhs.rawTubes(), blaze::subvector<0UL, NUM_TUBES>(rhs.m_q));
+        m_Tubes = rhs.m_Tubes;
+        m_q = rhs.m_q;
+        m_theta_0 = rhs.m_theta_0;
+        m_h_0 = rhs.m_h_0;
+        m_wf = rhs.m_wf;
+        m_wm = rhs.m_wm;
+        m_accuracy = rhs.m_accuracy;
+        m_method = rhs.m_method;
+        m_segment = Segment(rhs.rawTubes(), blaze::subvector<0UL, NUM_TUBES>(rhs.m_q));
         m_stateEquations = ODESystem{};
-        m_y              = rhs.m_y;
-        m_s              = rhs.m_s;
-        m_solver         = makeBVPSolver(rhs.m_method);
+        m_y = rhs.m_y;
+        m_s = rhs.m_s;
+        m_solver = makeBVPSolver(rhs.m_method);
     }
     return *this;
 }
@@ -66,9 +63,7 @@ void CTR::reset(const bvp_type &initGuess)
     m_s.clear();
     m_s.reserve(1000UL);
 
-    m_theta_0 = {0.0,
-                 m_q[4UL] - b[1UL] * uz_0[1UL] - alpha1_0,
-                 m_q[5UL] - b[2UL] * uz_0[2UL] - alpha1_0};
+    m_theta_0 = {0.0, m_q[4UL] - b[1UL] * uz_0[1UL] - alpha1_0, m_q[5UL] - b[2UL] * uz_0[2UL] - alpha1_0};
 
     mathOp::euler2Quaternion(0.0, alpha1_0, 0.0, m_h_0);
 }
@@ -84,33 +79,28 @@ bvp_type CTR::ODESolver(const bvp_type &initGuess)
     const SegmentData seg = m_segment.getParameters();
     const auto &[EI, GJ, U_x, U_y, S] = seg;
 
-    boost::numeric::odeint::adaptive_adams_bashforth_moulton<8UL,
-                                                             State,
-                                                             double,
-                                                             State,
-                                                             double,
-                                                             BlazeBVPAlgebra,
+    boost::numeric::odeint::adaptive_adams_bashforth_moulton<8UL, State, double, State, double, BlazeBVPAlgebra,
                                                              boost::numeric::odeint::default_operations,
                                                              boost::numeric::odeint::initially_resizer>
         abm8_stepper;
 
     // Initial conditions
     state_type y_0;
-    y_0[MB_X]    = initGuess[0UL];
-    y_0[MB_Y]    = initGuess[1UL];
-    y_0[UZ_1]    = initGuess[2UL];
-    y_0[UZ_2]    = initGuess[3UL];
-    y_0[UZ_3]    = initGuess[4UL];
+    y_0[MB_X] = initGuess[0UL];
+    y_0[MB_Y] = initGuess[1UL];
+    y_0[UZ_1] = initGuess[2UL];
+    y_0[UZ_2] = initGuess[3UL];
+    y_0[UZ_3] = initGuess[4UL];
     y_0[THETA_1] = m_theta_0[0UL];
     y_0[THETA_2] = m_theta_0[1UL];
     y_0[THETA_3] = m_theta_0[2UL];
-    y_0[POS_X]   = 0.0;
-    y_0[POS_Y]   = 0.0;
-    y_0[POS_Z]   = 0.0;
-    y_0[QUAT_W]  = m_h_0[0UL];
-    y_0[QUAT_X]  = m_h_0[1UL];
-    y_0[QUAT_Y]  = m_h_0[2UL];
-    y_0[QUAT_Z]  = m_h_0[3UL];
+    y_0[POS_X] = 0.0;
+    y_0[POS_Y] = 0.0;
+    y_0[POS_Z] = 0.0;
+    y_0[QUAT_W] = m_h_0[0UL];
+    y_0[QUAT_X] = m_h_0[1UL];
+    y_0[QUAT_Y] = m_h_0[2UL];
+    y_0[QUAT_Z] = m_h_0[3UL];
 
     auto observer = [this](const state_type &y, double s)
     {
@@ -124,23 +114,12 @@ bvp_type CTR::ODESolver(const bvp_type &initGuess)
     for (std::size_t seg_idx = 0UL; seg_idx < n_seg; ++seg_idx)
     {
         const double s_start = S[seg_idx];
-        const double s_end   = S[seg_idx + 1UL];
+        const double s_end = S[seg_idx + 1UL];
 
-        m_stateEquations.setEquationParameters(
-            blaze::column(U_x, seg_idx),
-            blaze::column(U_y, seg_idx),
-            blaze::column(EI,  seg_idx),
-            blaze::column(GJ,  seg_idx),
-            m_wf);
+        m_stateEquations.setEquationParameters(blaze::column(U_x, seg_idx), blaze::column(U_y, seg_idx),
+                                               blaze::column(EI, seg_idx), blaze::column(GJ, seg_idx), m_wf);
 
-        boost::numeric::odeint::integrate_adaptive(
-            abm8_stepper,
-            m_stateEquations,
-            y_0,
-            s_start,
-            s_end,
-            ds,
-            observer);
+        boost::numeric::odeint::integrate_adaptive(abm8_stepper, m_stateEquations, y_0, s_start, s_end, ds, observer);
     }
 
     // Distal boundary conditions
@@ -149,11 +128,8 @@ bvp_type CTR::ODESolver(const bvp_type &initGuess)
 
     const blaze::StaticVector<double, 3UL> distalMoment = blaze::trans(R1) * m_wm;
 
-    bvp_type Residue = {y_0[MB_X] - distalMoment[0UL],
-                        y_0[MB_Y] - distalMoment[1UL],
-                        GJ(0UL, 0UL) * y_0[UZ_1] - blaze::trans(ODESystem::kE3) * distalMoment,
-                        0.0,
-                        0.0};
+    bvp_type Residue = {y_0[MB_X] - distalMoment[0UL], y_0[MB_Y] - distalMoment[1UL],
+                        GJ(0UL, 0UL) * y_0[UZ_1] - blaze::trans(ODESystem::kE3) * distalMoment, 0.0, 0.0};
 
     const blaze::StaticVector<double, NUM_TUBES> distEnd = m_segment.getDistalEnds();
 
@@ -172,8 +148,7 @@ bvp_type CTR::ODESolver(const bvp_type &initGuess)
 
 // ─── Jacobians ────────────────────────────────────────────────────────────────
 
-blaze::StaticMatrix<double, BVP_DIM, BVP_DIM> CTR::jac_BVP(const bvp_type &initGuess,
-                                                            const bvp_type &residue)
+blaze::StaticMatrix<double, BVP_DIM, BVP_DIM> CTR::jac_BVP(const bvp_type &initGuess, const bvp_type &residue)
 {
     blaze::StaticMatrix<double, BVP_DIM, BVP_DIM, blaze::columnMajor> jac_bvp;
 
@@ -182,24 +157,23 @@ blaze::StaticMatrix<double, BVP_DIM, BVP_DIM> CTR::jac_BVP(const bvp_type &initG
     constexpr double incr_floor = 1.0E-9;
 
     scaled *= incr_scale;
-    scaled = blaze::generate(BVP_DIM, [&](std::size_t idx)
-                             { return (std::fabs(scaled[idx]) > incr_floor)
-                                      ? scaled[idx]
-                                      : std::copysign(incr_floor, initGuess[idx]); });
+    scaled = blaze::generate(
+        BVP_DIM, [&](std::size_t idx)
+        { return (std::fabs(scaled[idx]) > incr_floor) ? scaled[idx] : std::copysign(incr_floor, initGuess[idx]); });
 
     for (std::size_t iter = 0UL; iter < BVP_DIM; ++iter)
     {
         initGuessPerturbed[iter] += scaled[iter];
         residuePerturbed = ODESolver(initGuessPerturbed);
         blaze::column(jac_bvp, iter) = (residuePerturbed - residue) / scaled[iter];
-        initGuessPerturbed[iter]     = initGuess[iter];
+        initGuessPerturbed[iter] = initGuess[iter];
     }
 
     return jac_bvp;
 }
 
 blaze::StaticMatrix<double, 3UL, 6UL> CTR::jacobian(const bvp_type &initGuess,
-                                                     const blaze::StaticVector<double, 3UL> &tipPos)
+                                                    const blaze::StaticVector<double, 3UL> &tipPos)
 {
     blaze::StaticMatrix<double, 3UL, 6UL, blaze::columnMajor> jac;
 
@@ -210,10 +184,13 @@ blaze::StaticMatrix<double, 3UL, 6UL> CTR::jacobian(const bvp_type &initGuess,
 
     blaze::StaticVector<double, 6UL> q_scaled(m_q);
     q_scaled *= incr_scale;
-    q_scaled = blaze::generate(6UL, [&](std::size_t idx)
-                               { return (std::fabs(q_scaled[idx]) > incr_floor)
-                                        ? q_scaled[idx]
-                                        : std::copysign(incr_floor, q_original[idx]); });
+    q_scaled = blaze::generate(6UL,
+                               [&](std::size_t idx)
+                               {
+                                   return (std::fabs(q_scaled[idx]) > incr_floor)
+                                              ? q_scaled[idx]
+                                              : std::copysign(incr_floor, q_original[idx]);
+                               });
 
     // RAII guard: restores m_q and m_segment on any exit path (normal or exception).
     auto doRestore = [&]() noexcept
@@ -239,7 +216,7 @@ blaze::StaticMatrix<double, 3UL, 6UL> CTR::jacobian(const bvp_type &initGuess,
 
         std::ignore = ODESolver(initGuess);
         blaze::column(jac, iter) = (getTipPos() - tipPos) / q_scaled[iter];
-        q_perturbed[iter]        = q_original[iter];
+        q_perturbed[iter] = q_original[iter];
     }
 
     return jac;
@@ -257,9 +234,7 @@ bool CTR::actuate_CTR(bvp_type &initGuess, const blaze::StaticVector<double, 6UL
 
 // ─── Position control ─────────────────────────────────────────────────────────
 
-bool CTR::posCTRL(bvp_type &initGuess,
-                  const blaze::StaticVector<double, 3UL> &target,
-                  double posTol)
+bool CTR::posCTRL(bvp_type &initGuess, const blaze::StaticVector<double, 3UL> &target, double posTol)
 {
     double minError = 1.0E3;
     bool status;
@@ -280,8 +255,8 @@ bool CTR::posCTRL(bvp_type &initGuess,
     if (!status)
         return status;
 
-    blaze::StaticVector<double, 3UL> x_CTR        = getTipPos();
-    blaze::StaticVector<double, 3UL> tipError      = target - x_CTR;
+    blaze::StaticVector<double, 3UL> x_CTR = getTipPos();
+    blaze::StaticVector<double, 3UL> tipError = target - x_CTR;
     blaze::StaticVector<double, 3UL> last_tipError = tipError;
     blaze::StaticVector<double, 3UL> d_tipError{0.0, 0.0, 0.0};
     blaze::StaticVector<double, 3UL> int_tipError{0.0, 0.0, 0.0};
@@ -292,7 +267,7 @@ bool CTR::posCTRL(bvp_type &initGuess,
     if (dist2Tgt < minError)
     {
         minError = dist2Tgt;
-        q_min    = q;
+        q_min = q;
         if (dist2Tgt <= posTol)
             return status;
     }
@@ -300,15 +275,11 @@ bool CTR::posCTRL(bvp_type &initGuess,
     blaze::StaticVector<double, 6UL> f{0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     constexpr double Clr = 5.0E-3;
 
-    const blaze::StaticVector<double, NUM_TUBES> L = {
-        m_Tubes[0UL]->getTubeLength(),
-        m_Tubes[1UL]->getTubeLength(),
-        m_Tubes[2UL]->getTubeLength()};
+    const blaze::StaticVector<double, NUM_TUBES> L = {m_Tubes[0UL]->getTubeLength(), m_Tubes[1UL]->getTubeLength(),
+                                                      m_Tubes[2UL]->getTubeLength()};
 
-    const blaze::StaticVector<double, NUM_TUBES> ls = {
-        m_Tubes[0UL]->getStraightLen(),
-        m_Tubes[1UL]->getStraightLen(),
-        m_Tubes[2UL]->getStraightLen()};
+    const blaze::StaticVector<double, NUM_TUBES> ls = {m_Tubes[0UL]->getStraightLen(), m_Tubes[1UL]->getStraightLen(),
+                                                       m_Tubes[2UL]->getStraightLen()};
 
     blaze::StaticVector<double, NUM_TUBES> betaMax, betaMin;
 
@@ -326,12 +297,13 @@ bool CTR::posCTRL(bvp_type &initGuess,
         while (!blaze::isfinite(J))
         {
             ++isfinite_ctr;
-            if (isfinite_ctr > 200UL) break;
+            if (isfinite_ctr > 200UL)
+                break;
             initGuess *= 0.750;
             detail::sanitizeBVPGuess(initGuess);
             std::ignore = ODESolver(initGuess);
             x_CTR = getTipPos();
-            J     = jacobian(initGuess, x_CTR);
+            J = jacobian(initGuess, x_CTR);
         }
 
         J_inv = mathOp::pInv(J);
@@ -353,8 +325,8 @@ bool CTR::posCTRL(bvp_type &initGuess,
             span[i] = std::copysign(magnitude, span[i]);
         }
         const auto normalizedOffset = (betaMax + betaMin - 2.0 * b) / span;
-        blaze::subvector<0UL, NUM_TUBES>(f) = blaze::pow(blaze::abs(normalizedOffset), ke)
-                                              * blaze::sign(b - (betaMax + betaMin) * 0.5);
+        blaze::subvector<0UL, NUM_TUBES>(f) =
+            blaze::pow(blaze::abs(normalizedOffset), ke) * blaze::sign(b - (betaMax + betaMin) * 0.5);
 
         const auto taskSpaceCommand = Kp * tipError + Kd * d_tipError + Ki * int_tipError;
         dqdt = J_inv * taskSpaceCommand;
@@ -374,9 +346,8 @@ bool CTR::posCTRL(bvp_type &initGuess,
         rescale_dqdt();
 
         q += dqdt;
-        blaze::subvector<3UL, NUM_TUBES>(q) = blaze::map(
-            blaze::subvector<3UL, NUM_TUBES>(q),
-            [](double theta) { return mathOp::congruentAngle(theta); });
+        blaze::subvector<3UL, NUM_TUBES>(q) =
+            blaze::map(blaze::subvector<3UL, NUM_TUBES>(q), [](double theta) { return mathOp::congruentAngle(theta); });
 
         status = actuate_CTR(initGuess, q);
 
@@ -393,21 +364,21 @@ bool CTR::posCTRL(bvp_type &initGuess,
             }
         }
 
-        x_CTR    = getTipPos();
+        x_CTR = getTipPos();
         tipError = target - x_CTR;
 
         int_tipError += tipError;
-        int_tipError = blaze::map(int_tipError, [](double value)
-                                  { return std::clamp(value, -integralClamp, integralClamp); });
+        int_tipError =
+            blaze::map(int_tipError, [](double value) { return std::clamp(value, -integralClamp, integralClamp); });
 
-        d_tipError    = tipError - last_tipError;
+        d_tipError = tipError - last_tipError;
         last_tipError = tipError;
-        dist2Tgt      = blaze::norm(tipError);
+        dist2Tgt = blaze::norm(tipError);
 
         if (dist2Tgt < minError)
         {
-            minError     = dist2Tgt;
-            q_min        = q;
+            minError = dist2Tgt;
+            q_min = q;
             initGuessMin = initGuess;
         }
 
@@ -481,8 +452,7 @@ CTR::getTubeShapes() const
     return {Tb_1, Tb_2, Tb_3};
 }
 
-std::tuple<std::vector<double>, std::vector<double>, std::vector<double>>
-CTR::getShape() const
+std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> CTR::getShape() const
 {
     std::vector<double> r_x, r_y, r_z;
     r_x.reserve(m_y.size());

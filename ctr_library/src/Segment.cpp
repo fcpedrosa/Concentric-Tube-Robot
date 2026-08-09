@@ -2,12 +2,12 @@
 #include <algorithm>
 #include <cmath>
 
-namespace ctr {
+namespace ctr
+{
 
 // ─── Constructors ─────────────────────────────────────────────────────────────
 
-Segment::Segment(const std::array<const Tube *, NUM_TUBES> &tubes,
-                 const blaze::StaticVector<double, NUM_TUBES> &beta)
+Segment::Segment(const std::array<const Tube *, NUM_TUBES> &tubes, const blaze::StaticVector<double, NUM_TUBES> &beta)
 {
     recalculateSegments(tubes, beta);
 }
@@ -15,12 +15,10 @@ Segment::Segment(const std::array<const Tube *, NUM_TUBES> &tubes,
 // ─── Private: recalculate (called by CTR via friend) ──────────────────────────
 
 void Segment::recalculateSegments(const std::array<const Tube *, NUM_TUBES> &tubes,
-                                  const blaze::StaticVector<double, NUM_TUBES>  &beta)
+                                  const blaze::StaticVector<double, NUM_TUBES> &beta)
 {
-    const blaze::StaticVector<double, NUM_TUBES> tb_len = {
-        tubes[0]->getTubeLength(),
-        tubes[1]->getTubeLength(),
-        tubes[2]->getTubeLength()};
+    const blaze::StaticVector<double, NUM_TUBES> tb_len = {tubes[0]->getTubeLength(), tubes[1]->getTubeLength(),
+                                                           tubes[2]->getTubeLength()};
 
     m_S.clear();
     m_S.reserve(2UL * NUM_TUBES + 1UL);
@@ -49,8 +47,8 @@ void Segment::recalculateSegments(const std::array<const Tube *, NUM_TUBES> &tub
     m_U_y.resize(NUM_TUBES, nSeg, false);
 
     // Zero all matrices before selectively filling.
-    m_EI  = 0.0;
-    m_GJ  = 0.0;
+    m_EI = 0.0;
+    m_GJ = 0.0;
     m_U_x = 0.0;
     m_U_y = 0.0;
 
@@ -95,26 +93,22 @@ const blaze::StaticVector<double, NUM_TUBES> &Segment::getDistalEnds() const noe
     return m_dist_end;
 }
 
-const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &
-Segment::get_EI() const noexcept
+const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &Segment::get_EI() const noexcept
 {
     return m_EI;
 }
 
-const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &
-Segment::get_GJ() const noexcept
+const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &Segment::get_GJ() const noexcept
 {
     return m_GJ;
 }
 
-const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &
-Segment::get_U_x() const noexcept
+const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &Segment::get_U_x() const noexcept
 {
     return m_U_x;
 }
 
-const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &
-Segment::get_U_y() const noexcept
+const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &Segment::get_U_y() const noexcept
 {
     return m_U_y;
 }
