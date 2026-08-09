@@ -128,6 +128,55 @@ TEST_CASE("IK: FK -> IK -> FK round trips", "[regression][ik]")
     CHECK(totalIterations <= 100UL);
 }
 
+TEST_CASE("IK: reachable target requiring a large telescoping excursion", "[regression][ik]")
+{
+    // The round trips above all keep β within 10 mm of home, so they never
+    // exercise a long β travel — nor the telescoping limits that bound it.
+    // This target (the demo's) needs 25/30/45 mm of β and drives the iterate
+    // onto the tube-clearance face, where a naive per-coordinate clamp against
+    // the neighbours' pre-step β deadlocks: β₁ cannot advance until β₂ has and
+    // vice versa. That crawl left the tip 1.2 mm out after 500 iterations.
+    const blaze::StaticVector<double, 6UL> qStar = {
+        -95.0e-3, -70.0e-3, -35.0e-3, 0.0, math::deg2Rad(60.0), math::deg2Rad(-75.0)};
+
+    CTR probe = testing::makeReferenceRobot();
+    bvp_type guessProbe{};
+    REQUIRE(probe.actuate(qStar, guessProbe)); // the target is reachable by construction
+    const auto target = probe.tipPosition();
+
+    CTR robot = testing::makeReferenceRobot();
+    bvp_type guess{};
+    REQUIRE(robot.actuate(testing::kHomeConfig, guess));
+
+    const IKResult ik = robot.solveIK(target, kPosTol, guess);
+    CAPTURE(ik.positionError, ik.iterations);
+    CHECK(ik.converged);
+    CHECK(ik.positionError <= kPosTol);
+    CHECK(testing::maxAbsDiff(robot.tipPosition(), target) <= kPosTol * 2.0);
+
+    // A real budget, not just "under the cap": the deadlock burned every
+    // iteration it was given, so a generous-but-finite bound still catches a
+    // convergence-rate regression.
+    CHECK(ik.iterations <= 60UL);
+
+    // The returned configuration must satisfy the telescoping limits. The old
+    // per-coordinate clamp could violate them outright — when two tubes moved
+    // in the same step, each was bounded by the other's stale value, so the
+    // pair could close past the clearance.
+    constexpr double kClr = 5.0e-3; // must match the clearance used by solveIK
+    constexpr double kSlop = 1.0e-9;
+    const auto &q = ik.q;
+    CAPTURE(q[0UL], q[1UL], q[2UL]);
+    CHECK(q[1UL] - q[0UL] >= kClr - kSlop);
+    CHECK(q[2UL] - q[1UL] >= kClr - kSlop);
+    for (std::size_t i = 0UL; i < NUM_TUBES; ++i)
+        CHECK(q[i] >= -robot.tubes()[i].getStraightLen() - kSlop);
+    // Inner tubes must reach at least as far as the ones outside them.
+    const auto &tubes = robot.tubes();
+    CHECK(tubes[0UL].getTubeLength() + q[0UL] >= tubes[1UL].getTubeLength() + q[1UL] - kSlop);
+    CHECK(tubes[1UL].getTubeLength() + q[1UL] >= tubes[2UL].getTubeLength() + q[2UL] - kSlop);
+}
+
 TEST_CASE("IK: unreachable target reports failure honestly", "[regression][ik]")
 {
     CTR robot = testing::makeReferenceRobot();

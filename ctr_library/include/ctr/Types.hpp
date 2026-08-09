@@ -98,13 +98,23 @@ struct FKResult
  * tens of centimeters); they bound the per-iteration step so the damped
  * least-squares iteration stays inside the region where its linear model and
  * the warm-started BVP solve are reliable.
+ *
+ * The step caps make the iteration count scale with joint-space DISTANCE, not
+ * just with the local convergence rate: a target that needs Δβ of translation
+ * costs at least max|Δβ| / maxBetaStep iterations (and max|Δα| / maxAlphaStep
+ * for rotation) before Levenberg-Marquardt damping shrinks steps below the
+ * caps. maxIterations must therefore cover the excursion, not merely the
+ * endgame — the default accommodates a full-stroke β retraction/extension.
+ * Lower it for latency-bounded tracking loops, where a warm-started solve over
+ * a millimetre-scale target step converges in well under ten iterations.
  */
 struct IKOptions
 {
-    std::size_t maxIterations = 50UL; ///< Iteration budget.
-    double maxBetaStep = 2.0e-3;      ///< Per-iteration cap on each |Δβ| [m].
-    double maxAlphaStep = 0.35;       ///< Per-iteration cap on each |Δα| [rad].
-    double dampingSeed = 1.0e-3;      ///< Initial LM damping relative to max(diag(JJᵀ)).
+    std::size_t maxIterations = 200UL; ///< Iteration budget (Jacobian evaluations).
+    std::size_t maxBacktracks = 8UL;   ///< Step halvings tried per iteration before re-damping.
+    double maxBetaStep = 2.0e-3;       ///< Per-iteration cap on each |Δβ| [m].
+    double maxAlphaStep = 0.35;        ///< Per-iteration cap on each |Δα| [rad].
+    double dampingSeed = 1.0e-3;       ///< LM damping floor/seed, relative to max(diag(JJᵀ)).
 };
 
 /**

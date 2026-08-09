@@ -6,6 +6,7 @@
 #include <boost/numeric/odeint/algebra/vector_space_algebra.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <functional>
 #include <tuple>
@@ -407,6 +408,79 @@ IKResult CTR::solveIK(const blaze::StaticVector<double, 3UL> &target, double pos
     const blaze::StaticVector<double, NUM_TUBES> ls = {m_tubes[0UL].getStraightLen(), m_tubes[1UL].getStraightLen(),
                                                        m_tubes[2UL].getStraightLen()};
 
+    // ── The telescoping feasible set, as a polyhedron aᵀβ ≤ c ────────────────
+    // Every limit couples two tubes, which is why they cannot be enforced by
+    // clamping each β independently: doing that against the neighbours'
+    // PRE-STEP values both admits infeasible pairs (when two tubes move in the
+    // same step) and freezes any motion ALONG an active face (β₁ cannot advance
+    // until β₂ has, and vice versa) — a deadlock, not a limit.
+    using BetaVec = blaze::StaticVector<double, NUM_TUBES>;
+    struct Halfspace
+    {
+        BetaVec a;
+        double c;
+    };
+    // NUM_TUBES straight-length bounds + (NUM_TUBES-1) clearances + one
+    // distal-ordering face per tube pair.
+    constexpr std::size_t kNumFaces = NUM_TUBES + (NUM_TUBES - 1UL) + NUM_TUBES * (NUM_TUBES - 1UL) / 2UL;
+    std::array<Halfspace, kNumFaces> faces{};
+    {
+        std::size_t f = 0UL;
+        for (std::size_t i = 0UL; i < NUM_TUBES; ++i)
+        {
+            BetaVec a{}; // −β_i ≤ ls_i : tube i cannot advance past its straight length
+            a[i] = -1.0;
+            faces[f++] = {a, ls[i]};
+        }
+        for (std::size_t i = 0UL; i + 1UL < NUM_TUBES; ++i)
+        {
+            BetaVec a{}; // β_i − β_{i+1} ≤ −Clr : adjacent bases keep their clearance
+            a[i] = 1.0;
+            a[i + 1UL] = -1.0;
+            faces[f++] = {a, -Clr};
+        }
+        for (std::size_t i = 0UL; i < NUM_TUBES; ++i)
+            for (std::size_t j = i + 1UL; j < NUM_TUBES; ++j)
+            {
+                BetaVec a{}; // β_j − β_i ≤ L_i − L_j : inner tubes reach at least as far
+                a[j] = 1.0;
+                a[i] = -1.0;
+                faces[f++] = {a, L[i] - L[j]};
+            }
+    }
+
+    // Largest feasible move along a β direction: strip the outward normal of
+    // any face the step would push through from a point already on it (so the
+    // step slides along the face instead of being killed by it), then walk no
+    // further than the first face still ahead. Direction-preserving, and it
+    // cannot produce an infeasible configuration.
+    const auto projectBetaStep = [&faces](const BetaVec &b, BetaVec d) noexcept
+    {
+        // Slack below which a face counts as active. A nanometre is far below
+        // any physically meaningful gap but comfortably above the rounding
+        // noise left by the τ-clip that puts the iterate on the face to begin
+        // with — too tight a value here costs an extra iteration each time the
+        // step has to re-reach a face before it can slide along it.
+        constexpr double kActive = 1.0e-9; // [m]
+        for (std::size_t sweep = 0UL; sweep < 3UL; ++sweep)
+            for (const auto &[a, c] : faces)
+            {
+                const double advance = blaze::dot(a, d);
+                if ((c - blaze::dot(a, b) <= kActive) && (advance > 0.0))
+                    d -= (advance / blaze::sqrNorm(a)) * a;
+            }
+
+        double tau = 1.0;
+        const double eps = 1.0e-12 * std::max(1.0, blaze::linfNorm(d));
+        for (const auto &[a, c] : faces)
+        {
+            const double advance = blaze::dot(a, d);
+            if (advance > eps)
+                tau = std::min(tau, std::max(0.0, (c - blaze::dot(a, b)) / advance));
+        }
+        return blaze::evaluate(tau * d);
+    };
+
     // Levenberg-Marquardt damping state (dimensionally scaled inside the loop).
     double lambda = opts.dampingSeed;
     double nu = 2.0;
@@ -470,67 +544,78 @@ IKResult CTR::solveIK(const blaze::StaticVector<double, 3UL> &target, double pos
         if (dqInf > 1.0)
             dqScaled *= 1.0 / dqInf;
 
-        blaze::StaticVector<double, 6UL> dq = S * dqScaled; // element-wise back-scaling
-
-        // ── Trial configuration: telescoping β limits + α wrap ────────────────
-        blaze::StaticVector<double, 6UL> q_trial = q_acc + dq;
-        {
-            const auto &b = q_acc; // limits evaluated at the accepted β
-            blaze::StaticVector<double, NUM_TUBES> betaMin, betaMax;
-            betaMin[0UL] = std::max({-ls[0UL], L[1UL] + b[1UL] - L[0UL], L[2UL] + b[2UL] - L[0UL]});
-            betaMin[1UL] = std::max({-ls[1UL], b[0UL] + Clr, L[2UL] + b[2UL] - L[1UL]});
-            betaMin[2UL] = std::max(-ls[2UL], b[1UL] + Clr);
-
-            betaMax[0UL] = b[1UL] - Clr;
-            betaMax[1UL] = std::min(b[2UL] - Clr, L[0UL] + b[0UL] - L[1UL]);
-            betaMax[2UL] = std::min(L[1UL] + b[1UL] - L[2UL], L[0UL] + b[0UL] - L[2UL]);
-
-            for (std::size_t i = 0UL; i < NUM_TUBES; ++i)
-                q_trial[i] = std::clamp(q_trial[i], betaMin[i], betaMax[i]);
-        }
-        // The wrap is an exact 2π congruence — FK-invariant, so the linear
-        // model below keeps using the unwrapped dq.
-        const blaze::StaticVector<double, 6UL> dq_actual = q_trial - q_acc;
-        blaze::subvector<3UL, NUM_TUBES>(q_trial) =
-            blaze::map(blaze::subvector<3UL, NUM_TUBES>(q_trial), [](double a) { return math::wrapToPi(a); });
-
-        // ── Trial evaluation via warm-started BVP solve ───────────────────────
-        bvp_type x_trial = x_acc;
-        const FKResult fkTrial = actuate(q_trial, x_trial);
-
+        // ── Backtracking line search along the capped DLS direction ───────────
+        // λ is deliberately NOT the step-length knob here: the L∞ cap already
+        // bounds the step, and inflating λ both shortens AND rotates it, at the
+        // price of a whole outer iteration (a fresh Jacobian costs ~10 lean
+        // shots, a trial only one). When the direction is right but the step
+        // overshoots — the common case once the cap binds — halving along the
+        // SAME direction fixes it for one BVP solve. λ is left to do what it is
+        // actually for: re-conditioning the direction when no length works.
         bool accepted = false;
-        if (fkTrial)
+        double t = 1.0;
+        for (std::size_t bt = 0UL; (bt <= opts.maxBacktracks) && !accepted; ++bt, t *= 0.5)
         {
+            blaze::StaticVector<double, 6UL> dq = S * (dqScaled * t); // element-wise back-scaling
+
+            // ── Trial configuration: telescoping β limits + α wrap ────────────
+            // Only β is constrained; α is free (its sole "limit" is the 2π wrap).
+            blaze::subvector<0UL, NUM_TUBES>(dq) =
+                projectBetaStep(blaze::subvector<0UL, NUM_TUBES>(q_acc), blaze::subvector<0UL, NUM_TUBES>(dq));
+
+            blaze::StaticVector<double, 6UL> q_trial = q_acc + dq;
+            // The wrap is an exact 2π congruence — FK-invariant, so the linear
+            // model below keeps using the unwrapped dq.
+            const blaze::StaticVector<double, 6UL> dq_actual = q_trial - q_acc;
+            blaze::subvector<3UL, NUM_TUBES>(q_trial) =
+                blaze::map(blaze::subvector<3UL, NUM_TUBES>(q_trial), [](double a) { return math::wrapToPi(a); });
+
+            // ── Trial evaluation via warm-started BVP solve ───────────────────
+            bvp_type x_trial = x_acc;
+            const FKResult fkTrial = actuate(q_trial, x_trial);
+            if (!fkTrial)
+                continue; // a failed BVP is a bad step, not a bad direction
+
             const blaze::StaticVector<double, 3UL> tip_trial = tipPosition();
             const double err_trial = blaze::norm(target - tip_trial);
+            if (err_trial >= err_acc)
+                continue; // overshoot — halve and retry, Jacobian untouched
 
-            if (err_trial < err_acc)
-            {
-                // Gain ratio for the damping update (Madsen-Nielsen-Tingleff).
-                const double predicted = blaze::sqrNorm(e) - blaze::sqrNorm(e - J * dq_actual);
-                const double rho = (blaze::sqrNorm(e) - err_trial * err_trial) / std::max(predicted, 1.0e-300);
+            // Gain ratio for the damping update (Madsen-Nielsen-Tingleff).
+            const double predicted = blaze::sqrNorm(e) - blaze::sqrNorm(e - J * dq_actual);
+            const double rho = (blaze::sqrNorm(e) - err_trial * err_trial) / std::max(predicted, 1.0e-300);
 
-                accepted = true;
-                q_acc = q_trial;
-                x_acc = x_trial;
-                tip_acc = tip_trial;
-                fk = fkTrial;
+            accepted = true;
+            q_acc = q_trial;
+            x_acc = x_trial;
+            tip_acc = tip_trial;
+            fk = fkTrial;
 
-                if (err_acc - err_trial < 1.0e-10)
-                    ++stallCount;
-                else
-                    stallCount = 0UL;
-                err_acc = err_trial;
+            // Stall test, relative to the tolerance being chased. An absolute
+            // floor is useless here: backtracking will happily keep accepting
+            // sub-nanometre gains at the edge of the workspace, so a target
+            // that cannot be reached would burn the whole iteration budget.
+            // Below a thousandth of posTol per step, closing the remaining gap
+            // would take >1000 iterations — that is a stall, not progress.
+            if (err_acc - err_trial < 1.0e-3 * posTol)
+                ++stallCount;
+            else
+                stallCount = 0UL;
+            err_acc = err_trial;
 
-                lambda *= std::max(1.0 / 3.0, 1.0 - std::pow(2.0 * rho - 1.0, 3.0));
-                lambda = std::max(lambda, 1.0e-12);
-                nu = 2.0;
-            }
+            lambda *= std::max(1.0 / 3.0, 1.0 - std::pow(2.0 * rho - 1.0, 3.0));
+            // Floor at the seed: below it μ = λ·max|diag(J̃J̃ᵀ)| is negligible
+            // against J̃J̃ᵀ, so λ stops influencing the step at all (the cap
+            // governs) and merely accumulates a meaningless downward drift that
+            // later costs an expensive climb back to relevance.
+            lambda = std::max(lambda, opts.dampingSeed);
+            nu = 2.0;
         }
 
         if (!accepted)
         {
-            // Rejected (worse error or failed BVP): increase damping, shrink steps.
+            // No step length along this direction helped: the direction itself
+            // is wrong. Damp harder so the next one tilts toward the gradient.
             lambda *= nu;
             nu *= 2.0;
             if (lambda > 1.0e8)

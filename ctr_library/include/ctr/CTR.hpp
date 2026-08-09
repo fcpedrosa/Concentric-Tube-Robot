@@ -78,11 +78,23 @@ class CTR
     /**
      * @brief Inverse kinematics: steers the tip to a Cartesian target position.
      *
-     * Damped-least-squares iteration in task space with Levenberg-Marquardt
-     * step control, using the exact total kinematic Jacobian (see
-     * kinematicJacobian). Every trial configuration is evaluated through a
-     * warm-started BVP solve; a failed solve rejects the step rather than
-     * corrupting the state.
+     * Damped-least-squares iteration in task space using the exact total
+     * kinematic Jacobian (see kinematicJacobian). Every trial configuration is
+     * evaluated through a warm-started BVP solve; a failed solve rejects the
+     * step rather than corrupting the state.
+     *
+     * Step control is two-tiered. Within an iteration the step is backtracked
+     * (halved, up to IKOptions::maxBacktracks times) along a fixed direction,
+     * which reuses the Jacobian — so an overshoot costs one BVP solve. Only
+     * when no length along that direction helps is the Levenberg-Marquardt
+     * damping raised, which re-conditions the direction for the next
+     * iteration. IKOptions::maxIterations therefore counts Jacobian
+     * evaluations, the dominant cost.
+     *
+     * The telescoping β limits are handled as a polyhedron rather than as
+     * per-joint bounds: the β step is projected onto the feasible set, so it
+     * slides along an active tube-clearance face instead of being frozen by it,
+     * and the returned configuration is always feasible.
      *
      * @param target    Desired 3D tip position [m], global frame.
      * @param posTol    Position tolerance [m]; success means ||tip − target|| ≤ posTol.

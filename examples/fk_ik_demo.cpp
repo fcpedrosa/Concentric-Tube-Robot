@@ -79,12 +79,15 @@ int main()
     // take its tip position, then return to the home configuration and ask IK
     // to steer the tip back to that target.
     // (The historical demo target {-0.0532, 0.0436, 0.1795} lies OUTSIDE this
-    // tube set's reachable workspace — multi-start IK bottoms out ~26 mm away.
-    // The legacy solver claimed success on it because its return value
-    // reported BVP convergence, not target attainment.)
+    // tube set's reachable workspace — even caller-side multi-start bottoms out
+    // ~26 mm away. The legacy solver claimed success on it because its return
+    // value reported BVP convergence, not target attainment.)
     blaze::StaticVector<double, 6UL> q_ref = q_0;
+    q_ref[0UL] += 0.025; // beta [m]
+    q_ref[1UL] += 0.030;
+    q_ref[2UL] += 0.045;
     q_ref[4UL] = math::deg2Rad(60.0);
-    q_ref[5UL] = math::deg2Rad(-45.0);
+    q_ref[5UL] = math::deg2Rad(-75.0);
     std::ignore = robot.actuate(q_ref, initGuess);
     const blaze::StaticVector<double, 3UL> target = robot.tipPosition();
     std::ignore = robot.actuate(q_0, initGuess); // back to home
