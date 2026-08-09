@@ -87,9 +87,9 @@ class Tube
 
     ~Tube() = default;
     Tube(const Tube &) = default;                ///< Copyable value type.
-    Tube(Tube &&) noexcept = default;             ///< Movable.
-    Tube &operator=(const Tube &) = default;      ///< Copy-assignable.
-    Tube &operator=(Tube &&) noexcept = default;  ///< Move-assignable.
+    Tube(Tube &&) noexcept = default;            ///< Movable.
+    Tube &operator=(const Tube &) = default;     ///< Copy-assignable.
+    Tube &operator=(Tube &&) noexcept = default; ///< Move-assignable.
 
     // ─── Getters ─────────────────────────────────────────────────────────────
 

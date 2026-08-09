@@ -105,8 +105,7 @@ inline void getSO3(const blaze::DenseVector<VT, blaze::columnVector> &h_,
 inline blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor> rotz(const double theta)
 {
     const double c(std::cos(theta)), s(std::sin(theta));
-    return blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor>{
-        {c, -s, 0.00}, {s, c, 0.00}, {0.00, 0.00, 1.00}};
+    return blaze::StaticMatrix<double, 3UL, 3UL, blaze::columnMajor>{{c, -s, 0.00}, {s, c, 0.00}, {0.00, 0.00, 1.00}};
 }
 
 /**

@@ -458,11 +458,10 @@ IKResult CTR::solveIK(const blaze::StaticVector<double, 3UL> &target, double pos
         const double diagScale = blaze::max(blaze::abs(blaze::diagonal(JJt)));
         const double mu = lambda * diagScale;
 
-        blaze::StaticVector<double, 3UL> h;
         Mat<3UL, 3UL> Adamped(JJt);
         for (std::size_t i = 0UL; i < 3UL; ++i)
             Adamped(i, i) += mu;
-        blaze::solve(blaze::declsym(Adamped), h, e);
+        const blaze::StaticVector<double, 3UL> h = detail::solveLinear<3UL>(Adamped, e);
 
         blaze::StaticVector<double, 6UL> dqScaled = blaze::trans(Js) * h;
 
@@ -509,8 +508,7 @@ IKResult CTR::solveIK(const blaze::StaticVector<double, 3UL> &target, double pos
             {
                 // Gain ratio for the damping update (Madsen-Nielsen-Tingleff).
                 const double predicted = blaze::sqrNorm(e) - blaze::sqrNorm(e - J * dq_actual);
-                const double rho =
-                    (blaze::sqrNorm(e) - err_trial * err_trial) / std::max(predicted, 1.0e-300);
+                const double rho = (blaze::sqrNorm(e) - err_trial * err_trial) / std::max(predicted, 1.0e-300);
 
                 accepted = true;
                 q_acc = q_trial;

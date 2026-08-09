@@ -142,7 +142,7 @@ FKResult LevenbergMarquardtSolver::solve(bvp_type &initGuess, ShootingProblem &p
     while (!found && (k < k_max))
     {
         k++;
-        blaze::solve(blaze::declsym(A + (mu * I)), h, -g);
+        h = detail::solveLinear<BVP_DIM>(A + (mu * I), -g);
 
         f_new = problem.residual(initGuess + h);
         rho = (blaze::sqrNorm(f) - blaze::sqrNorm(f_new)) / (0.5 * blaze::trans(h) * ((mu * h) - g));

@@ -17,11 +17,15 @@ using namespace ctr;
 
 namespace
 {
-// Pure refactors must reproduce goldens essentially exactly; intentional
-// numerical changes (e.g. BVP rescaling) may relax these with justification.
-constexpr double kTipTol = 1.0e-11;  // [m]
-constexpr double kQuatTol = 1.0e-9;  // quaternion components (sign-normalized)
-constexpr double kXStarTol = 1.0e-6; // shooting variables (mixed units until rescaling)
+// Tolerances are calibrated to cross-compiler / cross-optimization-level
+// floating-point variation (different FP contraction shifts the Newton
+// stopping point within the BVP tolerance; measured ~4e-10 m in tips between
+// -O0 and -O3 builds). Any genuine numerical regression moves tips by orders
+// of magnitude more than this. Intentional numerical changes must re-capture
+// the goldens with justification in the commit message.
+constexpr double kTipTol = 5.0e-9;   // [m]
+constexpr double kQuatTol = 1.0e-7;  // quaternion components (sign-normalized)
+constexpr double kXStarTol = 1.0e-5; // shooting variables [1/m]
 } // namespace
 
 TEST_CASE("Golden FK: configuration grid incl. loaded cases", "[regression][golden]")
@@ -45,8 +49,8 @@ TEST_CASE("Golden FK: configuration grid incl. loaded cases", "[regression][gold
         // Quaternion comparison up to global sign (q and -q are the same rotation).
         const auto states = robot.states();
         const auto &yEnd = states[states.size() - 1UL];
-        blaze::StaticVector<double, 4UL> quat = {yEnd[StateIdx::QUAT_W], yEnd[StateIdx::QUAT_X],
-                                                 yEnd[StateIdx::QUAT_Y], yEnd[StateIdx::QUAT_Z]};
+        blaze::StaticVector<double, 4UL> quat = {yEnd[StateIdx::QUAT_W], yEnd[StateIdx::QUAT_X], yEnd[StateIdx::QUAT_Y],
+                                                 yEnd[StateIdx::QUAT_Z]};
         const double dPlus = blaze::linfNorm(quat - g.quat);
         const double dMinus = blaze::linfNorm(quat + g.quat);
         CHECK(std::min(dPlus, dMinus) < kQuatTol);

@@ -59,11 +59,11 @@ class Segment
      */
     Segment(const std::array<Tube, NUM_TUBES> &tubes, const blaze::StaticVector<double, NUM_TUBES> &beta);
 
-    Segment(const Segment &) = default;                ///< Copyable.
-    Segment(Segment &&) noexcept = default;             ///< Movable.
+    Segment(const Segment &) = default;     ///< Copyable.
+    Segment(Segment &&) noexcept = default; ///< Movable.
     ~Segment() = default;
-    Segment &operator=(const Segment &) = default;      ///< Copy-assignable.
-    Segment &operator=(Segment &&) noexcept = default;  ///< Move-assignable.
+    Segment &operator=(const Segment &) = default;     ///< Copy-assignable.
+    Segment &operator=(Segment &&) noexcept = default; ///< Move-assignable.
 
     // ─── Getters (cheap, by const reference) ─────────────────────────────────
 

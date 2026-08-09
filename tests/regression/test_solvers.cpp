@@ -31,8 +31,8 @@ std::vector<blaze::StaticVector<double, 6UL>> configGrid()
         }
 
     // One configuration with different retractions.
-    blaze::StaticVector<double, 6UL> q = {-100.0e-3, -85.0e-3, -70.0e-3, 0.0, math::deg2Rad(90.0),
-                                          math::deg2Rad(-120.0)};
+    blaze::StaticVector<double, 6UL> q = {
+        -100.0e-3, -85.0e-3, -70.0e-3, 0.0, math::deg2Rad(90.0), math::deg2Rad(-120.0)};
     grid.push_back(q);
     return grid;
 }
@@ -69,8 +69,9 @@ TEST_CASE("All solvers agree on the converged shooting solution", "[regression][
 
             // Physical agreement: tips must match across solvers.
             CHECK(testing::maxAbsDiff(robot.tipPosition(), tipRef) < 5.0e-6);
-            // Shooting-variable agreement (loose until the BVP is non-dimensionalized).
-            CHECK(blaze::linfNorm(guess - guessRef) < 1.0e-2);
+            // Shooting-variable agreement (different solvers stop at different
+            // points within the residual tolerance).
+            CHECK(blaze::linfNorm(guess - guessRef) < 1.0e-3);
         }
     }
 }
@@ -118,13 +119,12 @@ TEST_CASE("Hard cold-start configuration: honest failure and Broyden escape", "[
     // Newton-type iterations descend into a non-root local minimum of ||f||^2
     // (residual ~0.097). Broyden's quasi-Newton path escapes it, which is why
     // the default solver's fallback cascade tries a zero-restarted Broyden.
-    const blaze::StaticVector<double, 6UL> qHard = {-0.12, -0.1, -0.08, math::deg2Rad(-30.0), math::deg2Rad(100.0),
-                                                    math::deg2Rad(-160.0)};
+    const blaze::StaticVector<double, 6UL> qHard = {
+        -0.12, -0.1, -0.08, math::deg2Rad(-30.0), math::deg2Rad(100.0), math::deg2Rad(-160.0)};
 
     SECTION("Pure Newton-type solvers fail honestly (no fake convergence, finite residual)")
     {
-        for (const RootFindingMethod method :
-             {RootFindingMethod::LevenbergMarquardt, RootFindingMethod::PowellDogLeg})
+        for (const RootFindingMethod method : {RootFindingMethod::LevenbergMarquardt, RootFindingMethod::PowellDogLeg})
         {
             CAPTURE(static_cast<int>(method));
             CTR robot = testing::makeReferenceRobot(method);

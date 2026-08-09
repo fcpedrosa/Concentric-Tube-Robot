@@ -12,7 +12,12 @@ namespace
 {
 TubeParams referenceParams()
 {
-    return {.OD = 0.92e-3, .ID = 0.80e-3, .E = 65.0e9, .G = 24.6e9, .ls = 190.0e-3, .lc = 60.0e-3,
+    return {.OD = 0.92e-3,
+            .ID = 0.80e-3,
+            .E = 65.0e9,
+            .G = 24.6e9,
+            .ls = 190.0e-3,
+            .lc = 60.0e-3,
             .u_ast = {25.0, 0.0, 0.0}};
 }
 } // namespace

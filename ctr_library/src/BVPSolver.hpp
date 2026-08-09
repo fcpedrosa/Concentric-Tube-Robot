@@ -7,7 +7,9 @@
 #include "ctr/Types.hpp"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
+#include <utility>
 
 namespace ctr
 {
@@ -46,27 +48,90 @@ inline void sanitizeBVPGuess(bvp_type &x) noexcept
 }
 
 /**
+ * @brief Solves the small dense system A·x = b by Gaussian elimination with
+ *        partial pivoting.
+ *
+ * Hand-rolled on purpose: blaze::solve/blaze::invert dispatch on the matrix
+ * size at RUNTIME, so their generic LAPACK branches stay referenced in
+ * unoptimized builds even though they are never taken for these fixed sizes —
+ * which would silently reintroduce a LAPACK link dependency. For 3×3 and 5×5
+ * systems this elimination is a handful of flops.
+ *
+ * @return The solution, or a NaN-filled vector if A is exactly singular.
+ */
+template <std::size_t N>
+[[nodiscard]] inline blaze::StaticVector<double, N> solveLinear(Mat<N, N> A, blaze::StaticVector<double, N> b) noexcept
+{
+    for (std::size_t k = 0UL; k < N; ++k)
+    {
+        // Partial pivoting.
+        std::size_t p = k;
+        for (std::size_t i = k + 1UL; i < N; ++i)
+            if (std::fabs(A(i, k)) > std::fabs(A(p, k)))
+                p = i;
+        if (p != k)
+        {
+            for (std::size_t j = k; j < N; ++j)
+                std::swap(A(k, j), A(p, j));
+            std::swap(b[k], b[p]);
+        }
+
+        const double piv = A(k, k);
+        if (piv == 0.0)
+            return blaze::StaticVector<double, N>(std::numeric_limits<double>::quiet_NaN());
+
+        for (std::size_t i = k + 1UL; i < N; ++i)
+        {
+            const double m = A(i, k) / piv;
+            if (m != 0.0)
+            {
+                for (std::size_t j = k + 1UL; j < N; ++j)
+                    A(i, j) -= m * A(k, j);
+                b[i] -= m * b[k];
+            }
+        }
+    }
+
+    // Back substitution.
+    blaze::StaticVector<double, N> x;
+    for (std::size_t k = N; k-- > 0UL;)
+    {
+        double s = b[k];
+        for (std::size_t j = k + 1UL; j < N; ++j)
+            s -= A(k, j) * x[j];
+        x[k] = s / A(k, k);
+    }
+    return x;
+}
+
+/// Inverts a small dense matrix column-by-column via solveLinear.
+template <std::size_t N> [[nodiscard]] inline Mat<N, N> invertMatrix(const Mat<N, N> &A) noexcept
+{
+    Mat<N, N> inv;
+    blaze::StaticVector<double, N> e(0.0);
+    for (std::size_t j = 0UL; j < N; ++j)
+    {
+        e[j] = 1.0;
+        blaze::column(inv, j) = solveLinear<N>(A, e);
+        e[j] = 0.0;
+    }
+    return inv;
+}
+
+/**
  * @brief Inverts a BVP Jacobian.
  *
- * Uses Blaze's closed-form 5×5 inversion (allocation- and LAPACK-free). Near
- * singularity it falls back to the damped pseudo-inverse (JᵀJ + μI)⁻¹Jᵀ with
- * μ scaled to the Jacobian's magnitude; if even that is non-finite, returns a
- * zero matrix (turning the caller's step into a detectable stall rather than
- * a NaN cascade).
+ * Direct pivoted inversion (allocation- and LAPACK-free). Near singularity it
+ * falls back to the damped pseudo-inverse (JᵀJ + μI)⁻¹Jᵀ with μ scaled to the
+ * Jacobian's magnitude; if even that is non-finite, returns a zero matrix
+ * (turning the caller's step into a detectable stall rather than a NaN
+ * cascade).
  */
 [[nodiscard]] inline Mat<BVP_DIM, BVP_DIM> invertJacobian(const Mat<BVP_DIM, BVP_DIM> &J)
 {
-    try
-    {
-        Mat<BVP_DIM, BVP_DIM> Jinv(J);
-        blaze::invert(Jinv);
-        if (blaze::isfinite(Jinv))
-            return Jinv;
-    }
-    catch (const std::exception &)
-    {
-        // fall through to the damped pseudo-inverse
-    }
+    const Mat<BVP_DIM, BVP_DIM> Jinv = invertMatrix<BVP_DIM>(J);
+    if (blaze::isfinite(Jinv))
+        return Jinv;
 
     Mat<BVP_DIM, BVP_DIM> A = blaze::trans(J) * J;
     double mu = 1.0e-10 * blaze::max(blaze::abs(blaze::diagonal(A)));
@@ -75,16 +140,9 @@ inline void sanitizeBVPGuess(bvp_type &x) noexcept
     for (std::size_t i = 0UL; i < BVP_DIM; ++i)
         A(i, i) += mu;
 
-    try
-    {
-        blaze::invert(A);
-        Mat<BVP_DIM, BVP_DIM> pinv = A * blaze::trans(J);
-        if (blaze::isfinite(pinv))
-            return pinv;
-    }
-    catch (const std::exception &)
-    {
-    }
+    const Mat<BVP_DIM, BVP_DIM> pinv = invertMatrix<BVP_DIM>(A) * blaze::trans(J);
+    if (blaze::isfinite(pinv))
+        return pinv;
     return Mat<BVP_DIM, BVP_DIM>(0.0);
 }
 

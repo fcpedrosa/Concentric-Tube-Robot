@@ -6,8 +6,7 @@ namespace ctr
 
 // ─── Constructor ──────────────────────────────────────────────────────────────
 
-Tube::Tube(const TubeParams &p)
-    : m_OD(p.OD), m_ID(p.ID), m_E(p.E), m_G(p.G), m_ls(p.ls), m_lc(p.lc), m_u_ast(p.u_ast)
+Tube::Tube(const TubeParams &p) : m_OD(p.OD), m_ID(p.ID), m_E(p.E), m_G(p.G), m_ls(p.ls), m_lc(p.lc), m_u_ast(p.u_ast)
 {
     // Construction is a cold path — validate unconditionally (also in Release).
     if (!(p.ID > 0.0))

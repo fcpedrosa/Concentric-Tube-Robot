@@ -27,17 +27,32 @@ int main()
     // # # # # # ---- The three component tubes, innermost first ---- # # # # #
     // All quantities SI: meters, Pascals, 1/m.
     std::array<Tube, NUM_TUBES> tubes = {
-        Tube{{.OD = 0.92E-3, .ID = 0.80E-3, .E = E, .G = G, .ls = 190.00E-3, .lc = 60.00E-3,
+        Tube{{.OD = 0.92E-3,
+              .ID = 0.80E-3,
+              .E = E,
+              .G = G,
+              .ls = 190.00E-3,
+              .lc = 60.00E-3,
               .u_ast = {1.00 / R1, 0.00, 0.00}}}, // innermost tube
-        Tube{{.OD = 1.10E-3, .ID = 0.97E-3, .E = E, .G = G, .ls = 120.00E-3, .lc = 80.00E-3,
+        Tube{{.OD = 1.10E-3,
+              .ID = 0.97E-3,
+              .E = E,
+              .G = G,
+              .ls = 120.00E-3,
+              .lc = 80.00E-3,
               .u_ast = {1.00 / R2, 0.00, 0.00}}}, // intermediate tube
-        Tube{{.OD = 1.40E-3, .ID = 1.20E-3, .E = E, .G = G, .ls = 90.00E-3, .lc = 40.00E-3,
+        Tube{{.OD = 1.40E-3,
+              .ID = 1.20E-3,
+              .E = E,
+              .G = G,
+              .ls = 90.00E-3,
+              .lc = 40.00E-3,
               .u_ast = {1.00 / R3, 0.00, 0.00}}}, // outermost tube
     };
 
     // initial joint actuation values "home position" - q = [beta | alpha]
     const blaze::StaticVector<double, 6UL> q_0 = {-120.00E-3, -100.00E-3, -80.00E-3, // beta [m]
-                                                  0.00, 0.00, 0.00};                 // alpha [rad]
+                                                  0.00,       0.00,       0.00};     // alpha [rad]
 
     // BVP tolerance and IK position tolerance (0.5 mm)
     constexpr double Tol = 1.00E-6;
@@ -55,8 +70,8 @@ int main()
     auto finish = std::chrono::high_resolution_clock::now();
 
     const auto fk_us = std::chrono::duration_cast<std::chrono::microseconds>(finish - start).count();
-    std::cout << "FK " << (fk ? "converged" : "FAILED to converge") << " in " << fk_us << " us ("
-              << fk.iterations << " iterations, residual " << fk.residual << ").\n"
+    std::cout << "FK " << (fk ? "converged" : "FAILED to converge") << " in " << fk_us << " us (" << fk.iterations
+              << " iterations, residual " << fk.residual << ").\n"
               << "Tip position [m]: " << blaze::trans(robot.tipPosition()) << std::endl;
 
     // ************************ Inverse kinematics ************************
@@ -83,9 +98,10 @@ int main()
               << ik.iterations << " iterations).\n"
               << std::endl;
 
-    std::cout << "Target [m]:       " << blaze::trans(target) << "Tip position [m]: "
-              << blaze::trans(robot.tipPosition()) << "Joint values (IK solution): " << blaze::trans(ik.q)
-              << "Position error: " << ik.positionError * 1.00E3 << " [mm]" << std::endl;
+    std::cout << "Target [m]:       " << blaze::trans(target)
+              << "Tip position [m]: " << blaze::trans(robot.tipPosition())
+              << "Joint values (IK solution): " << blaze::trans(ik.q) << "Position error: " << ik.positionError * 1.00E3
+              << " [mm]" << std::endl;
 
     return (fk && ik) ? 0 : 1;
 }

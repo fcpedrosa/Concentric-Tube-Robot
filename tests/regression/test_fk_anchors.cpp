@@ -151,8 +151,7 @@ TEST_CASE("T3: recorded twist angles satisfy theta' = uz_i - uz_1", "[regression
             if (s[k + 1UL] > distal[tube] - 1e-6)
                 continue;
 
-            const double thetaRate =
-                (states[k + 1UL][THETA_1 + tube] - states[k][THETA_1 + tube]) / ds;
+            const double thetaRate = (states[k + 1UL][THETA_1 + tube] - states[k][THETA_1 + tube]) / ds;
             const double uzDiff = 0.5 * ((states[k][UZ_1 + tube] - states[k][UZ_1]) +
                                          (states[k + 1UL][UZ_1 + tube] - states[k + 1UL][UZ_1]));
 

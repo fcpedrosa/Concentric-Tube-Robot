@@ -116,11 +116,11 @@ struct IKOptions
  */
 struct IKResult
 {
-    bool converged{false};                                   ///< ||tip - target|| <= posTol at exit.
-    double positionError{0.0};                               ///< Final ||tip - target|| [m].
-    std::size_t iterations{0UL};                             ///< IK iterations used.
+    bool converged{false};                                    ///< ||tip - target|| <= posTol at exit.
+    double positionError{0.0};                                ///< Final ||tip - target|| [m].
+    std::size_t iterations{0UL};                              ///< IK iterations used.
     SolverStatus lastBVPStatus{SolverStatus::NumericalError}; ///< Status of the last internal BVP solve.
-    blaze::StaticVector<double, 6UL> q{};                    ///< Joint configuration at exit.
+    blaze::StaticVector<double, 6UL> q{};                     ///< Joint configuration at exit.
 
     /** @brief True iff the tip reached the target within posTol. */
     [[nodiscard]] explicit operator bool() const noexcept { return converged; }

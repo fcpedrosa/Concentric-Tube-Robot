@@ -25,11 +25,26 @@ inline constexpr double kBVPTol = 1.0e-6;
 [[nodiscard]] inline std::array<Tube, NUM_TUBES> makeReferenceTubes()
 {
     return {
-        Tube{{.OD = 0.92e-3, .ID = 0.80e-3, .E = kE, .G = kG, .ls = 190.0e-3, .lc = 60.0e-3,
+        Tube{{.OD = 0.92e-3,
+              .ID = 0.80e-3,
+              .E = kE,
+              .G = kG,
+              .ls = 190.0e-3,
+              .lc = 60.0e-3,
               .u_ast = {1.0 / 40.0e-3, 0.0, 0.0}}},
-        Tube{{.OD = 1.10e-3, .ID = 0.97e-3, .E = kE, .G = kG, .ls = 120.0e-3, .lc = 80.0e-3,
+        Tube{{.OD = 1.10e-3,
+              .ID = 0.97e-3,
+              .E = kE,
+              .G = kG,
+              .ls = 120.0e-3,
+              .lc = 80.0e-3,
               .u_ast = {1.0 / 100.0e-3, 0.0, 0.0}}},
-        Tube{{.OD = 1.40e-3, .ID = 1.20e-3, .E = kE, .G = kG, .ls = 90.0e-3, .lc = 40.0e-3,
+        Tube{{.OD = 1.40e-3,
+              .ID = 1.20e-3,
+              .E = kE,
+              .G = kG,
+              .ls = 90.0e-3,
+              .lc = 40.0e-3,
               .u_ast = {1.0 / 140.0e-3, 0.0, 0.0}}},
     };
 }
