@@ -1,29 +1,25 @@
-# ignores the directory containing the VSCode configuration files
-.vscode/*
-
-#ignores the build directory
-build/*
-
-#ignores compiler's cache info
+# Build outputs
+build*/
 .cache/
-
-# ignores dependence files
-*.d
-
-# ignores specific files
-*.json
-*core*
-
-# Ignore OS-specific files
-Thumbs.db
-.DS_Store
-
-# Ignore compiled object files and executables
 *.o
 *.obj
 *.exe
 *.out
+*.d
+*.a
+*.so
 
-# Ignore the Doxygen configuration file
-Doxyfile.*
-mainpage.dox
+# Generated documentation (source of truth is docs/Doxyfile)
+docs/generated/
+
+# User-local CMake presets (CMakePresets.json IS tracked)
+CMakeUserPresets.json
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Local working notes (not part of the library)
+Code_Review.md
