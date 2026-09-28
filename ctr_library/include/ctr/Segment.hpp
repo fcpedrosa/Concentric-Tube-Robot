@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file Segment.hpp
+ * @brief Piecewise-constant decomposition of the backbone (ctr::Segment) — advanced API.
+ */
+
 #include <vector>
 #include <array>
 #include "ctr/Tube.hpp"
@@ -21,6 +26,14 @@ class CTR; // forward declaration — CTR is the only class that may recalculate
  *
  * recalculateSegments() is private: only the owning CTR object is permitted to
  * update the segment decomposition (via the friend declaration).
+ *
+ * In the matrices below, row i is tube i (innermost first) and column k is
+ * segment k, i.e. the arc-length interval between transition points k and
+ * k+1. Entries are zero where a tube is absent, and the pre-curvature is zero
+ * over a tube's straight section.
+ *
+ * @note Advanced API: CTR builds and owns its Segment; most users never need
+ *       it directly (CTR::distalEnds covers the common query).
  */
 class Segment
 {
@@ -49,6 +62,7 @@ class Segment
                              const blaze::StaticVector<double, NUM_TUBES> &beta);
 
   public:
+    /** @brief Empty decomposition (no segments). */
     Segment() = default;
 
     /**
@@ -62,30 +76,48 @@ class Segment
     Segment(const Segment &) = default;     ///< Copyable.
     Segment(Segment &&) noexcept = default; ///< Movable.
     ~Segment() = default;
-    Segment &operator=(const Segment &) = default;     ///< Copy-assignable.
-    Segment &operator=(Segment &&) noexcept = default; ///< Move-assignable.
+    Segment &operator=(const Segment &) = default;     ///< Copy-assignable. @return `*this`.
+    Segment &operator=(Segment &&) noexcept = default; ///< Move-assignable. @return `*this`.
 
     // ─── Getters (cheap, by const reference) ─────────────────────────────────
 
-    /** @brief Returns the arc-length transition points along the CTR backbone. */
+    /**
+     * @brief Returns the arc-length transition points along the CTR backbone.
+     * @return Sorted arc lengths [m], starting at 0 (the base) and ending at the tip.
+     */
     [[nodiscard]] const std::vector<double> &getTransitionPoints() const noexcept;
 
-    /** @brief Returns the arc-lengths at each tube's distal end. */
+    /**
+     * @brief Returns the arc lengths at each tube's distal end.
+     * @return Distal-end arc lengths [m], innermost first.
+     */
     [[nodiscard]] const blaze::StaticVector<double, NUM_TUBES> &getDistalEnds() const noexcept;
 
-    /** @brief Returns the bending stiffness matrix over all segments (3 × N). */
+    /**
+     * @brief Returns the bending stiffness over all segments.
+     * @return 3 × N matrix of EI [N·m²] (tube × segment).
+     */
     [[nodiscard]] const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &
     get_EI() const noexcept;
 
-    /** @brief Returns the torsional stiffness matrix over all segments (3 × N). */
+    /**
+     * @brief Returns the torsional stiffness over all segments.
+     * @return 3 × N matrix of GJ [N·m²] (tube × segment).
+     */
     [[nodiscard]] const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &
     get_GJ() const noexcept;
 
-    /** @brief Returns the x-direction pre-curvature matrix over all segments (3 × N). */
+    /**
+     * @brief Returns the x-direction pre-curvature over all segments.
+     * @return 3 × N matrix of u*ₓ [1/m] (tube × segment).
+     */
     [[nodiscard]] const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &
     get_U_x() const noexcept;
 
-    /** @brief Returns the y-direction pre-curvature matrix over all segments (3 × N). */
+    /**
+     * @brief Returns the y-direction pre-curvature over all segments.
+     * @return 3 × N matrix of u*ᵧ [1/m] (tube × segment).
+     */
     [[nodiscard]] const blaze::HybridMatrix<double, NUM_TUBES, MAX_SEGMENTS, blaze::columnMajor> &
     get_U_y() const noexcept;
 };

@@ -78,10 +78,6 @@ int main()
     // Build a verified-reachable target: run FK at a reference configuration,
     // take its tip position, then return to the home configuration and ask IK
     // to steer the tip back to that target.
-    // (The historical demo target {-0.0532, 0.0436, 0.1795} lies OUTSIDE this
-    // tube set's reachable workspace — even caller-side multi-start bottoms out
-    // ~26 mm away. The legacy solver claimed success on it because its return
-    // value reported BVP convergence, not target attainment.)
     blaze::StaticVector<double, 6UL> q_ref = q_0;
     q_ref[0UL] += 0.025; // beta [m]
     q_ref[1UL] += 0.030;

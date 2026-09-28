@@ -18,11 +18,13 @@ target_include_directories(ctr_kinematics PUBLIC
 target_compile_features(ctr_kinematics PUBLIC cxx_std_23)
 
 # Blaze's shared-memory parallelization only adds dispatch overhead (and an
-# OpenMP dependency) for this library's small fixed-size kernels. Blaze is
-# header-only, so the setting must be PUBLIC: consumers have to compile
-# against the same configuration.
+# OpenMP dependency) for this library's small fixed-size kernels, and its BLAS
+# mode is never used here (distro builds of Blaze often enable it, which would
+# otherwise require cblas.h). Blaze is header-only, so the settings must be
+# PUBLIC: consumers have to compile against the same configuration.
 target_compile_definitions(ctr_kinematics PUBLIC
-    BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0)
+    BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0
+    BLAZE_BLAS_MODE=0)
 
 target_link_libraries(ctr_kinematics
     PUBLIC
@@ -33,7 +35,6 @@ target_link_libraries(ctr_kinematics
         "$<BUILD_LOCAL_INTERFACE:ctr_sanitizers>")
 
 # ─── Install & export ─────────────────────────────────────────────────────────
-include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 install(TARGETS ctr_kinematics

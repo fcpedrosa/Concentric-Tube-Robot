@@ -1,5 +1,13 @@
 #pragma once
 
+/**
+ * @file CTR.hpp
+ * @brief The robot class ctr::CTR — forward/inverse kinematics and shape access.
+ *
+ * This is the only header most users need: it pulls in ctr::Tube, the result
+ * and option types of Types.hpp, and Blaze.
+ */
+
 #include "ctr/Types.hpp"
 #include "ctr/Tube.hpp"
 #include "ctr/Segment.hpp"
@@ -19,68 +27,139 @@ class ShootingProblem; // facade granting solvers access to the FK internals
 /**
  * @brief A three-tube Concentric Tube Robot (CTR).
  *
- * Responsibilities:
- *  - Maintain robot state (tube assembly, joint configuration, external loads).
- *  - Perform forward kinematics by solving the Cosserat-model boundary value
- *    problem with a shooting method (Rucker, Jones & Webster, IEEE T-RO 2010).
- *  - Solve inverse kinematics (tip position control).
+ * A CTR owns its tube assembly, its joint configuration, the optional distal
+ * load and the solver machinery. It provides
+ *  - **forward kinematics** (actuate()): solves the Cosserat-model boundary
+ *    value problem with a shooting method (Rucker, Jones & Webster,
+ *    IEEE T-RO 2010) and records the resulting backbone;
+ *  - **inverse kinematics** (solveIK()): tip-position control by damped
+ *    least squares on the exact kinematic Jacobian (kinematicJacobian());
+ *  - **shape access** (tipPosition(), backboneShape(), tubeShapes(), states()).
  *
- * Conventions (SI units throughout):
+ * Typical use:
+ * @code{.cpp}
+ * ctr::CTR robot(tubes, q0, 1e-6);             // no kinematics solved yet
+ * ctr::bvp_type guess{};                       // zero = valid cold start
+ * if (ctr::FKResult fk = robot.actuate(q0, guess); fk)
+ *     std::cout << blaze::trans(robot.tipPosition());
+ * @endcode
+ *
+ * Conventions (SI units throughout; see @ref conventions):
  *  - Joint configuration q = [β₁, β₂, β₃, α₁, α₂, α₃]: linear retractions β
  *    in meters (non-positive), axial rotations α in radians.
  *  - Tubes are ordered innermost-first everywhere.
  *  - All returned positions/shapes are in meters, in the global frame at the
  *    robot base (s = 0).
- *  - The BVP shooting vector (initGuess) is non-dimensionalized to curvature
- *    units [1/m]: [mb_x(0)/EI₁, mb_y(0)/EI₁, u1z(0), u2z(0), u3z(0)], where
- *    EI₁ is the innermost tube's bending stiffness. This makes all residue
- *    components commensurate so a single tolerance is meaningful. A zero
- *    vector is always a valid cold-start guess.
+ *  - The BVP shooting vector (ctr::bvp_type) is non-dimensionalized to
+ *    curvature units [1/m]: [mb_x(0)/EI₁, mb_y(0)/EI₁, u1z(0), u2z(0), u3z(0)],
+ *    where EI₁ is the innermost tube's bending stiffness. This makes all
+ *    residue components commensurate so a single tolerance is meaningful. A
+ *    zero vector is always a valid cold-start guess.
+ *
+ * **State.** Shape accessors report the backbone computed by the most recent
+ * actuate() or solveIK() call; until one of them has run, they return empty
+ * polylines and a zero tip. Modifiers (setConfiguration(), setDistalForce(),
+ * setDistalMoment(), ...) only store their input — the next actuate() uses it.
+ *
+ * **Copying and threads.** CTR is a value type: copies are fully independent
+ * (the BVP solver is cloned). A single object is not safe to use from several
+ * threads at once, since every kinematics call mutates its internal state —
+ * give each thread its own copy.
+ *
+ * @see @ref usage for a task-oriented guide, @ref model for the mathematics.
  */
 class CTR
 {
   public:
+    /// @name Construction, copy and move
+    ///@{
+
     CTR() = delete;
 
     /**
      * @brief Constructs a CTR robot.
      *
+     * Only stores the model: no kinematics is solved here, so call actuate()
+     * before reading the tip or shapes.
+     *
      * @param tubes        The three component tubes, innermost first.
      * @param q            Initial 6-DOF actuation vector [β₁..β₃ (m), α₁..α₃ (rad)].
-     * @param bvpTolerance Convergence tolerance for the BVP residue (L∞ norm).
+     * @param bvpTolerance Convergence tolerance for the non-dimensional BVP
+     *                     residue (L∞ norm, [1/m]); 1e-6 is a good default.
      * @param method       Root-finding method for the shooting BVP.
      */
     CTR(std::array<Tube, NUM_TUBES> tubes, const blaze::StaticVector<double, 6UL> &q, double bvpTolerance,
         RootFindingMethod method = RootFindingMethod::ModifiedNewtonRaphson);
 
-    /** @brief Deep copy; the BVP solver is cloned by method. */
+    /**
+     * @brief Deep copy; the BVP solver is cloned by method.
+     * @param rhs Robot to copy.
+     */
     CTR(const CTR &rhs);
-    /** @brief Deep copy assignment; the BVP solver is cloned by method. */
+    /**
+     * @brief Deep copy assignment; the BVP solver is cloned by method.
+     * @param rhs Robot to copy.
+     * @return `*this`.
+     */
     CTR &operator=(const CTR &rhs);
-    /** @brief Move; a moved-from robot self-heals on its next use. */
+    /**
+     * @brief Move; a moved-from robot self-heals on its next use.
+     * @param rhs Robot to move from.
+     */
     CTR(CTR &&rhs) noexcept;
-    /** @brief Move assignment; a moved-from robot self-heals on its next use. */
+    /**
+     * @brief Move assignment; a moved-from robot self-heals on its next use.
+     * @param rhs Robot to move from.
+     * @return `*this`.
+     */
     CTR &operator=(CTR &&rhs) noexcept;
+    /** @brief Destructor. */
     ~CTR();
 
-    // ─── Kinematics ──────────────────────────────────────────────────────────
+    ///@}
+
+    /// @name Kinematics
+    ///@{
 
     /**
-     * @brief Actuates the CTR to a joint configuration and solves the corresponding BVP.
+     * @brief Forward kinematics: actuates the CTR to a joint configuration and
+     *        solves the corresponding BVP.
+     *
+     * Stores @p q as the current configuration, solves the shooting problem
+     * starting from @p initGuess, and records the backbone at the final
+     * shooting vector. The call never throws on non-convergence; always check
+     * the returned FKResult.
+     *
+     * @code{.cpp}
+     * ctr::bvp_type guess{};                    // cold start
+     * const ctr::FKResult fk = robot.actuate(q, guess);
+     * if (!fk)
+     *     std::cerr << "BVP did not converge, residual " << fk.residual << '\n';
+     * // Tracking: keep passing the same `guess` — each call warm-starts
+     * // from the previous solution and typically converges in 1-3 iterations.
+     * @endcode
      *
      * @param q         Target 6-DOF joint configuration [β (m), α (rad)].
-     * @param initGuess Proximal boundary-condition guess (updated in place on
-     *                  convergence — pass the previous solution to warm-start).
+     * @param initGuess In: proximal boundary-condition guess (zero is a valid
+     *                  cold start). Out: the solver's final shooting vector —
+     *                  the solution when the solve converged. Pass it back on
+     *                  the next call to warm-start.
      * @return FKResult describing convergence, iterations, and final residue.
+     *         Shapes and tip reflect the returned shooting vector even when
+     *         the solve failed, so check the result before trusting them.
      */
     [[nodiscard]] FKResult actuate(const blaze::StaticVector<double, 6UL> &q, bvp_type &initGuess);
 
     /**
      * @brief Inverse kinematics: steers the tip to a Cartesian target position.
      *
+     * The iteration **starts from the robot's current configuration** (the
+     * last actuate()/solveIK()/setConfiguration()), which is re-solved first;
+     * seed it by setting a configuration close to the expected answer.
+     *
      * Damped-least-squares iteration in task space using the exact total
-     * kinematic Jacobian (see kinematicJacobian). Every trial configuration is
-     * evaluated through a warm-started BVP solve; a failed solve rejects the
+     * kinematic Jacobian (see kinematicJacobian()). Every trial configuration
+     * is evaluated through a warm-started BVP solve; a failed solve rejects the
      * step rather than corrupting the state.
      *
      * Step control is two-tiered. Within an iteration the step is backtracked
@@ -92,9 +171,22 @@ class CTR
      * evaluations, the dominant cost.
      *
      * The telescoping β limits are handled as a polyhedron rather than as
-     * per-joint bounds: the β step is projected onto the feasible set, so it
-     * slides along an active tube-clearance face instead of being frozen by it,
-     * and the returned configuration is always feasible.
+     * per-joint bounds (see @ref conv_limits): the β step is projected onto
+     * the feasible set, so it slides along an active tube-clearance face
+     * instead of being frozen by it, and the returned configuration is always
+     * feasible.
+     *
+     * On return the robot is actuated at IKResult::q, so tipPosition() and the
+     * shape accessors describe the returned solution.
+     *
+     * @code{.cpp}
+     * const blaze::StaticVector<double, 3UL> target{0.0, 0.03, 0.18}; // [m]
+     * const ctr::IKResult ik = robot.solveIK(target, 5e-4, guess);
+     * if (ik)
+     *     useJoints(ik.q);                           // tip within 0.5 mm
+     * else
+     *     std::cerr << "closest approach " << ik.positionError << " m\n";
+     * @endcode
      *
      * @param target    Desired 3D tip position [m], global frame.
      * @param posTol    Position tolerance [m]; success means ||tip − target|| ≤ posTol.
@@ -115,81 +207,164 @@ class CTR
      * essential: differentiating the tip at FIXED shooting variables yields a
      * systematically wrong Jacobian.
      *
+     * @code{.cpp}
+     * if (robot.actuate(q, guess)) {
+     *     const ctr::Mat<3UL, 6UL> J = robot.kinematicJacobian(guess);
+     *     // predicted tip displacement for a small joint step dq:
+     *     const blaze::StaticVector<double, 3UL> dr = J * dq;
+     * }
+     * @endcode
+     *
      * @pre The robot has been actuated at the current configuration and
-     *      xStar is the (near-)converged shooting vector for it.
+     *      @p xStar is the (near-)converged shooting vector for it.
      * @param xStar Converged shooting vector at the current configuration.
      * @return 3×6 total kinematic Jacobian (columns: β₁..β₃ [m], α₁..α₃ [rad]).
      */
     [[nodiscard]] Mat<3UL, 6UL> kinematicJacobian(const bvp_type &xStar);
 
-    // ─── Shape access (all meters) ───────────────────────────────────────────
+    ///@}
+
+    /// @name Shape access (all meters, global frame)
+    /// Results of the most recent actuate() / solveIK(); empty (or zero) before the first one.
+    ///@{
 
     /// A polyline of 3D backbone points [m].
     using Points = std::vector<blaze::StaticVector<double, 3UL>>;
 
     /**
      * @brief Returns the centerline of each tube as a polyline of 3D points [m].
-     * @return Array indexed innermost-first; tube 1 spans the full backbone.
+     * @return Array indexed innermost-first. Tube 1 spans the full backbone;
+     *         tube i (i > 1) ends at its distal end distalEnds()[i]. All
+     *         polylines start at the base, s = 0.
      */
     [[nodiscard]] std::array<Points, NUM_TUBES> tubeShapes() const;
 
-    /** @brief Returns the full backbone centerline as a polyline of 3D points [m]. */
+    /**
+     * @brief Returns the full backbone centerline as a polyline of 3D points [m].
+     * @return One point per integration step, from the base (s = 0) to the tip;
+     *         the matching arc lengths are arcLengthSamples().
+     */
     [[nodiscard]] Points backboneShape() const;
 
-    /** @brief Returns the tip (distal end) position [m]. */
+    /**
+     * @brief Returns the tip (distal end of the innermost tube) position.
+     * @return Tip position [m], global frame.
+     */
     [[nodiscard]] blaze::StaticVector<double, 3UL> tipPosition() const;
 
-    /** @brief Returns the arc-length of each tube's distal end [m]. */
+    /**
+     * @brief Returns the arc length at which each tube ends, for the current β.
+     * @return Distal-end arc lengths [m], innermost first: max(0, Lᵢ + βᵢ).
+     */
     [[nodiscard]] blaze::StaticVector<double, NUM_TUBES> distalEnds() const;
 
-    // ─── Observers ───────────────────────────────────────────────────────────
+    ///@}
 
-    /** @brief Returns the tube assembly (innermost first). */
+    /// @name Observers
+    ///@{
+
+    /**
+     * @brief Returns the tube assembly.
+     * @return The three tubes, innermost first.
+     */
     [[nodiscard]] const std::array<Tube, NUM_TUBES> &tubes() const noexcept;
 
-    /** @brief Returns the current joint configuration [β (m), α (rad)]. */
+    /**
+     * @brief Returns the current joint configuration.
+     * @return q = [β₁, β₂, β₃ (m), α₁, α₂, α₃ (rad)].
+     */
     [[nodiscard]] blaze::StaticVector<double, 6UL> configuration() const noexcept;
 
-    /** @brief Returns the linear actuation values [β₁, β₂, β₃] (m). */
+    /**
+     * @brief Returns the linear actuation values.
+     * @return [β₁, β₂, β₃] [m].
+     */
     [[nodiscard]] blaze::StaticVector<double, NUM_TUBES> beta() const noexcept;
 
-    /** @brief Returns the BVP convergence tolerance. */
+    /**
+     * @brief Returns the BVP convergence tolerance.
+     * @return Tolerance on the L∞ norm of the non-dimensional residue [1/m].
+     */
     [[nodiscard]] double tolerance() const noexcept { return m_accuracy; }
 
-    /** @brief Returns the fixed arc-length integration step [m]. */
+    /**
+     * @brief Returns the fixed arc-length integration step.
+     * @return Step size [m].
+     */
     [[nodiscard]] double integrationStep() const noexcept { return m_ds; }
 
-    /** @brief Full ODE state at each recorded arc-length sample (advanced). */
+    /**
+     * @brief Full ODE state at each recorded arc-length sample (advanced).
+     *
+     * Use StateIdx to address components (e.g. the orientation quaternion at
+     * StateIdx::QUAT_W..QUAT_Z). The view is invalidated by the next
+     * actuate() / solveIK().
+     *
+     * @return One ctr::state_type per sample, aligned with arcLengthSamples().
+     */
     [[nodiscard]] std::span<const state_type> states() const noexcept;
 
-    /** @brief Arc-length values corresponding to states() (advanced). */
+    /**
+     * @brief Arc-length values corresponding to states() (advanced).
+     * @return Arc lengths [m], increasing from 0 to the tip. Invalidated like states().
+     */
     [[nodiscard]] std::span<const double> arcLengthSamples() const noexcept;
 
-    // ─── Modifiers ───────────────────────────────────────────────────────────
+    ///@}
 
-    /** @brief Sets the joint configuration without actuating the CTR. */
+    /// @name Modifiers
+    /// These only store their input; call actuate() to recompute the kinematics.
+    ///@{
+
+    /**
+     * @brief Sets the joint configuration without solving the kinematics.
+     *
+     * Mostly useful to seed solveIK() from a chosen starting configuration.
+     *
+     * @param q Joint configuration [β (m), α (rad)].
+     */
     void setConfiguration(const blaze::StaticVector<double, 6UL> &q);
 
-    /** @brief Switches the BVP root-finding strategy. */
+    /**
+     * @brief Switches the BVP root-finding strategy.
+     * @param method The new method; see RootFindingMethod.
+     */
     void setBVPMethod(RootFindingMethod method);
 
-    /** @brief Sets the external point moment at the CTR's distal end [N·m], global frame. */
+    /**
+     * @brief Sets the external point moment applied at the CTR's distal end.
+     * @param moment Moment [N·m], global frame. Zero (the default) means unloaded.
+     */
     void setDistalMoment(const blaze::StaticVector<double, 3UL> &moment);
 
-    /** @brief Sets the external point force at the CTR's distal end [N], global frame. */
+    /**
+     * @brief Sets the external point force applied at the CTR's distal end.
+     * @param force Force [N], global frame. Zero (the default) means unloaded.
+     */
     void setDistalForce(const blaze::StaticVector<double, 3UL> &force);
 
-    /** @brief Replaces one tube (innermost-first index) and recomputes the segmentation. */
+    /**
+     * @brief Replaces one tube and recomputes the segmentation.
+     * @pre `idx < NUM_TUBES` (not checked).
+     * @param idx  Innermost-first tube index (0, 1 or 2).
+     * @param tube The replacement tube.
+     */
     void setTube(std::size_t idx, Tube tube);
 
     /**
-     * @brief Sets the fixed arc-length integration step [m] (default 1 mm).
+     * @brief Sets the fixed arc-length integration step (default 1 mm).
      *
      * Integration is deliberately fixed-step and deterministic (the
      * finite-difference Jacobians depend on it); this knob trades accuracy
-     * for speed uniformly. Values in [1e-5, 1e-2] are accepted.
+     * for speed uniformly. At 1 mm the tip is already accurate to ~3e-11 m
+     * for tabletop-scale robots, so larger steps are usually the useful
+     * direction.
+     *
+     * @param ds Step [m]; values outside [1e-5, 1e-2] are clamped to that range.
      */
     void setIntegrationStep(double ds);
+
+    ///@}
 
   private:
     friend class ShootingProblem; // the only external access path to the FK internals

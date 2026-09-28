@@ -15,7 +15,7 @@ All quantities are SI throughout the public API:
 | Moments               | [N·m] |
 
 There are no hidden unit conversions anywhere (no millimeter-scaled
-outputs). `ctr::math::deg2Rad` is provided for convenience.
+outputs). Convert degrees yourself, e.g. `deg * std::numbers::pi / 180.0`.
 
 @section conv_q The joint vector
 
@@ -28,8 +28,21 @@ The 6-DOF actuation vector is
 - @f$\alpha_i@f$ [rad]: axial rotation of tube @e i at its base.
 - Tubes are ordered **innermost first** everywhere (arrays, indices, matrices).
 
-The telescoping constraints (inner tubes extend at least as far as outer
-ones, with a 5 mm clearance) are enforced by CTR::solveIK when it steps β.
+@section conv_limits Telescoping limits
+
+Physically meaningful retractions satisfy, for tubes @e i (inner) and
+@e j (outer), with lengths @f$L_i@f$ and straight lengths @f$\ell_{s,i}@f$:
+
+- @f$-\beta_i \le \ell_{s,i}@f$ — a tube cannot be retracted past its
+  straight section;
+- @f$\beta_i \le \beta_{i+1} - 5\,\mathrm{mm}@f$ — each tube's base stays at
+  least 5 mm behind the base of the next outer tube;
+- @f$L_i + \beta_i \ge L_j + \beta_j@f$ — inner tubes reach at least as far
+  as outer ones.
+
+CTR::solveIK enforces these (as a polyhedron, so steps slide along active
+limits) and always returns a feasible configuration. CTR::actuate accepts
+any q; keeping it feasible is the caller's responsibility.
 
 @section conv_frames Frames
 

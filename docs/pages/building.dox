@@ -4,11 +4,19 @@
 @section build_deps Dependencies
 
 - CMake ≥ 3.26 and a C++23 compiler (GCC ≥ 13 or Clang ≥ 17)
-- Boost ≥ 1.74 (header-only use: Boost.Odeint)
-- Blaze ≥ 3.8
+- Boost ≥ 1.74 (header-only use: Boost.Odeint), e.g. `apt install libboost-dev`
+- Blaze ≥ 3.8 — **optional to install**: if `find_package(blaze)` fails,
+  CMake downloads Blaze 3.8.2 automatically (FetchContent) and installs it
+  alongside the library. Many distributions (Debian, Ubuntu) do not package
+  Blaze, so this is the normal path there. Pass
+  `-DCMAKE_DISABLE_FIND_PACKAGE_blaze=ON` to force the download, or
+  `-DFETCHCONTENT_FULLY_DISCONNECTED=ON` (with Blaze installed) for offline builds.
 
 The test suite uses Catch2 v3, found via `find_package` or fetched
-automatically with FetchContent. Nothing else — no BLAS/LAPACK/TBB.
+automatically with FetchContent. Nothing else — no BLAS/LAPACK/TBB/OpenMP:
+the library compiles Blaze with `BLAZE_BLAS_MODE=0` and
+`BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0` (propagated to consumers through
+the `ctr::kinematics` target), regardless of how Blaze itself was configured.
 
 @section build_build Building
 
@@ -58,8 +66,17 @@ find_package(ctr_kinematics CONFIG REQUIRED)
 target_link_libraries(your_app PRIVATE ctr::kinematics)
 @endcode
 
-Or vendored: `add_subdirectory(Concentric-Tube-Robot)` provides the same
-`ctr::kinematics` target.
+Or vendored, e.g. as a git submodule or via FetchContent:
+
+@code{.cmake}
+add_subdirectory(external/Concentric-Tube-Robot)   # or FetchContent_MakeAvailable
+target_link_libraries(your_app PRIVATE ctr::kinematics)
+@endcode
+
+When vendored, the examples and tests are off by default and the parent
+project's build type and output directories are left untouched.
+
+Then continue with the @ref usage.
 
 @section build_docs Documentation
 

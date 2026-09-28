@@ -25,23 +25,50 @@ if(PROJECT_IS_TOP_LEVEL)
     include(CTest) # defines BUILD_TESTING (default ON)
 endif()
 
-# Default to a Release build when nothing was specified
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Setting build type to 'Release' as none was specified.")
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build (Debug, Release, RelWithDebInfo, MinSizeRel)." FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+# Build type and output directories are the parent project's business when
+# this project is vendored via add_subdirectory().
+if(PROJECT_IS_TOP_LEVEL)
+    # Default to a Release build when nothing was specified
+    if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+        message(STATUS "Setting build type to 'Release' as none was specified.")
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build (Debug, Release, RelWithDebInfo, MinSizeRel)." FORCE)
+        set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+    endif()
+
+    # Output directories (build-tree convenience only)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 endif()
 
-# Output directories (build-tree convenience only)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+# Must precede add_subdirectory(ctr_library): the target's INSTALL_INTERFACE
+# include directory is taken from CMAKE_INSTALL_INCLUDEDIR.
+include(GNUInstallDirs)
 
 # ─── Dependencies ─────────────────────────────────────────────────────────────
 # The library needs exactly two third-party packages:
 #   Boost (header-only use: Boost.Odeint) and Blaze (linear algebra).
 find_package(Boost 1.74 REQUIRED CONFIG)
-find_package(blaze REQUIRED CONFIG)
+
+# Blaze: prefer an installed package; otherwise fetch the 3.8.2 release (many
+# distributions, e.g. Debian/Ubuntu, do not package Blaze). A fetched Blaze is
+# installed alongside this library so the exported package stays consumable.
+include(FetchContent)
+FetchContent_Declare(blaze
+    URL https://bitbucket.org/blaze-lib/blaze/downloads/blaze-3.8.2.tar.gz
+    URL_HASH SHA256=4c4e1915971efbedab95790e4c5cf017d8448057fa8f8c62c46e1643bf72cbb1
+    SYSTEM
+    FIND_PACKAGE_ARGS 3.8 CONFIG)
+# Only consulted if Blaze is fetched. Blaze's cmake_minimum_required predates
+# CMP0077, so its options must be pre-seeded as cache entries: no LAPACK and
+# no OpenMP (this library needs neither).
+set(USE_LAPACK OFF CACHE BOOL "Blaze: require LAPACK")
+set(BLAZE_SHARED_MEMORY_PARALLELIZATION OFF CACHE BOOL "Blaze: shared-memory parallelization")
+set(CMAKE_EXPORT_NO_PACKAGE_REGISTRY ON) # Blaze calls export(PACKAGE)
+FetchContent_MakeAvailable(blaze)
+if(NOT TARGET blaze::blaze)
+    add_library(blaze::blaze ALIAS blaze) # Blaze's own CMake defines no alias
+endif()
 
 if(CTR_ENABLE_LTO)
     include(CheckIPOSupported)

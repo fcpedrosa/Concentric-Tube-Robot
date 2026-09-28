@@ -17,9 +17,19 @@ GENERATE_LATEX         = NO
 GENERATE_TREEVIEW      = YES
 USE_MATHJAX            = YES
 
+EXAMPLE_PATH           = examples
+IMAGE_PATH             = images
+
 EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
 HIDE_UNDOC_MEMBERS     = NO
+SORT_MEMBER_DOCS       = NO
+
+# Every public entity must be documented, including all parameters and return
+# values; any warning fails the build (and the Docs CI workflow).
 WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
 
 # Internals are documented for maintainers but excluded from the public API docs.
 EXCLUDE_SYMBOLS        = ctr::detail ctr::detail::* ctr::math ctr::math::*
@@ -28,4 +38,4 @@ JAVADOC_AUTOBRIEF      = YES
 QT_AUTOBRIEF           = YES
 BUILTIN_STL_SUPPORT    = YES
 
-PREDEFINED             = "BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0"
+PREDEFINED             = "BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0" "BLAZE_BLAS_MODE=0"

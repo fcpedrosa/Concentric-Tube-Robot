@@ -1,5 +1,10 @@
 #pragma once
 
+/**
+ * @file ODESystem.hpp
+ * @brief Right-hand side of the Cosserat backbone ODE (ctr::ODESystem) — advanced API.
+ */
+
 #include <blaze/Math.h>
 #include "ctr/Types.hpp"
 #include "ctr/Segment.hpp"
@@ -48,11 +53,14 @@ class ODESystem
     ODESystem(const ODESystem &) = default;     ///< Copyable.
     ODESystem(ODESystem &&) noexcept = default; ///< Movable.
     ~ODESystem() = default;
-    ODESystem &operator=(const ODESystem &) = default;     ///< Copy-assignable.
-    ODESystem &operator=(ODESystem &&) noexcept = default; ///< Move-assignable.
+    ODESystem &operator=(const ODESystem &) = default;     ///< Copy-assignable. @return `*this`.
+    ODESystem &operator=(ODESystem &&) noexcept = default; ///< Move-assignable. @return `*this`.
 
     /**
      * @brief Functor implementing the ODE right-hand side for Boost.Odeint.
+     *
+     * The equations are listed in @ref model_cosserat; the state layout is
+     * given by StateIdx.
      *
      * @param y    Current state vector at arc-length s.
      * @param dyds Output: spatial derivative of the state vector at arc-length s.

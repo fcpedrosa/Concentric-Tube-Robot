@@ -19,7 +19,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libboost-dev libblaze-dev
+          sudo apt-get install -y ninja-build libboost-dev
 
       - name: Configure
         env:
@@ -78,7 +78,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libboost-dev libblaze-dev
+          sudo apt-get install -y ninja-build libboost-dev
 
       - name: Configure (ASan + UBSan)
         run: >

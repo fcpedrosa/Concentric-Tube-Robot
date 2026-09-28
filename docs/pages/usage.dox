@@ -1,0 +1,268 @@
+/**
+@page usage User guide
+
+This page walks through the library task by task. Every snippet assumes
+
+@code{.cpp}
+#include <ctr/CTR.hpp>
+using namespace ctr;
+using Vec3 = blaze::StaticVector<double, 3UL>;
+using Vec6 = blaze::StaticVector<double, 6UL>;
+@endcode
+
+and SI units throughout (see @ref conventions). A complete program is in the
+@ref fk_ik_demo.cpp "fk_ik_demo.cpp" example.
+
+@tableofcontents
+
+@section usage_tubes 1. Describing the tubes
+
+Each tube is a ctr::Tube built from a ctr::TubeParams aggregate. A tube is a
+straight *transmission* section of length `ls` (at the actuator), followed
+by a *curved* section of length `lc` with constant pre-curvature `u_ast`:
+
+| Field   | Meaning                                    | Unit |
+|---------|--------------------------------------------|------|
+| `OD`, `ID` | outer / inner diameter                  | m    |
+| `E`, `G`   | Young's / shear modulus (Nitinol: ≈ 50–80 GPa, G = E / (2(1+ν))) | Pa |
+| `ls`    | straight-section length                    | m    |
+| `lc`    | curved-section length                      | m    |
+| `u_ast` | pre-curvature in the tube's body frame; `{1/R, 0, 0}` for a planar arc of radius R | 1/m |
+
+@code{.cpp}
+constexpr double E = 65e9, nu = 0.32, G = E / (2.0 * (1.0 + nu));
+std::array<Tube, NUM_TUBES> tubes = {
+    Tube{{.OD = 0.92e-3, .ID = 0.80e-3, .E = E, .G = G,
+          .ls = 190e-3, .lc = 60e-3, .u_ast = {1.0 / 0.040, 0.0, 0.0}}},  // innermost
+    Tube{{.OD = 1.10e-3, .ID = 0.97e-3, .E = E, .G = G,
+          .ls = 120e-3, .lc = 80e-3, .u_ast = {1.0 / 0.100, 0.0, 0.0}}},
+    Tube{{.OD = 1.40e-3, .ID = 1.20e-3, .E = E, .G = G,
+          .ls = 90e-3,  .lc = 40e-3, .u_ast = {1.0 / 0.140, 0.0, 0.0}}},  // outermost
+};
+@endcode
+
+The order is always **innermost first**. Invalid geometry or material
+(e.g. `OD <= ID`, a non-positive modulus) throws `std::invalid_argument`
+from the Tube constructor, so a Tube that exists is always valid. Tubes are
+immutable: to change one, copy its Tube::parameters(), edit, rebuild, and
+hand it to CTR::setTube.
+
+@section usage_robot 2. Creating a robot
+
+@code{.cpp}
+const Vec6 q0 = {-120e-3, -100e-3, -80e-3,  // β₁..β₃ [m], ≤ 0
+                 0.0, 0.0, 0.0};            // α₁..α₃ [rad]
+CTR robot(tubes, q0, 1e-6);                 // BVP tolerance
+@endcode
+
+The joint vector q = [β₁, β₂, β₃, α₁, α₂, α₃] holds each tube's retraction
+β (how far its base is pulled back; tube i then protrudes `L_i + β_i`) and
+its base rotation α. The tolerance applies to the non-dimensional BVP
+residual; `1e-6` is a good default. The constructor does **not** solve the
+kinematics — the tip and shapes are empty until the first CTR::actuate.
+
+@section usage_fk 3. Forward kinematics
+
+@code{.cpp}
+bvp_type guess{};                           // zero = valid cold start
+const FKResult fk = robot.actuate(q0, guess);
+if (!fk) {
+    // fk.status: MaxIterations or NumericalError; fk.residual: how far off
+}
+const Vec3 tip = robot.tipPosition();       // [m], base frame
+@endcode
+
+CTR::actuate stores the configuration, solves the boundary value problem
+(see @ref model_bvp), and records the backbone. It never throws on
+non-convergence: the returned ctr::FKResult (convertible to `bool`) says what
+happened. Always check it before using the tip.
+
+@subsection usage_warm Warm starting
+
+`guess` is an in/out argument: on return it holds the solved shooting vector
+(ctr::bvp_type). Passing it back on the next call — for a nearby
+configuration — warm-starts the solver, which then typically converges in
+one to three iterations instead of many. Keep one `bvp_type` per robot and
+thread it through every call; reset it to zero (`guess = 0.0;`) only after a
+large jump in configuration or a failed solve.
+
+@section usage_shapes 4. Reading the shape
+
+After a solve the robot exposes the result in several granularities:
+
+| Call | Returns |
+|------|---------|
+| CTR::tipPosition()      | tip position [m] |
+| CTR::backboneShape()    | backbone polyline, one point per integration step |
+| CTR::tubeShapes()       | one polyline per tube (each ends at its own distal end) |
+| CTR::distalEnds()       | arc length at which each tube ends [m] |
+| CTR::states(), CTR::arcLengthSamples() | full 15-dim ODE state at each sample (indexed by ctr::StateIdx) and its arc length |
+
+@code{.cpp}
+const auto shapes = robot.tubeShapes();
+for (std::size_t i = 0; i < NUM_TUBES; ++i)
+    for (const Vec3 &p : shapes[i])
+        csv << i << ',' << p[0] << ',' << p[1] << ',' << p[2] << '\n';
+@endcode
+
+@image html Backbone.png "tubeShapes() plotted: tube 1 (blue), 2 (orange), 3 (green)" width=60%
+
+The orientation along the backbone is available from states() via the
+quaternion components StateIdx::QUAT_W..QUAT_Z (tube 1's body frame; see
+@ref conv_frames). Shapes always describe the most recent actuate()/solveIK().
+
+@section usage_ik 5. Inverse kinematics
+
+CTR::solveIK finds a joint configuration that places the tip at a Cartesian
+target:
+
+@code{.cpp}
+const Vec3 target = {0.0, 0.03, 0.18};      // [m]
+const IKResult ik = robot.solveIK(target, 5e-4, guess);   // 0.5 mm tolerance
+if (ik) {
+    use(ik.q);                              // robot is now actuated at ik.q
+} else {
+    // ik.positionError: best distance achieved; ik.lastBVPStatus: last FK status
+}
+@endcode
+
+Things to know:
+
+- **It starts from the robot's current configuration.** The last
+  actuate()/solveIK() (or CTR::setConfiguration) defines the initial point.
+  The method is local, so a nearby start matters for far targets.
+- **Success means the tip is really there**: ctr::IKResult::converged is
+  true only if `‖tip − target‖ ≤ posTol` at exit, never merely because the
+  last BVP converged.
+- **Results are always feasible and consistent**: the returned q satisfies
+  the telescoping limits (@ref conv_limits), and on return the robot is
+  actuated at IKResult::q, so tipPosition() and the shapes match it.
+- Typical cost: a few milliseconds for a fresh target; about 1 ms per 2 mm
+  step when tracking with a warm start.
+
+@subsection usage_tracking Tracking a trajectory
+
+For a stream of nearby targets, reuse the robot and the guess, and bound the
+iteration budget for predictable latency (see ctr::IKOptions):
+
+@code{.cpp}
+IKOptions opts;
+opts.maxIterations = 20;                    // default 200 covers full-stroke moves
+for (const Vec3 &waypoint : path) {
+    const IKResult ik = robot.solveIK(waypoint, 2e-4, guess, opts);
+    if (!ik)
+        handleMiss(ik.positionError);       // robot is left at the best feasible q
+    sendToActuators(ik.q);
+}
+@endcode
+
+The per-iteration caps IKOptions::maxBetaStep (2 mm) and
+IKOptions::maxAlphaStep (0.35 rad) keep each step inside the region where
+the linearization is trustworthy; enlarge them only for robots much larger
+than tabletop scale.
+
+@subsection usage_multistart Far targets and multi-start
+
+Because the iteration is local, a target on the far side of the workspace
+may end in a local minimum (`!ik` with a finite `positionError`). Since the
+result reports the achieved error honestly, a multi-start wrapper is short:
+
+@code{.cpp}
+IKResult best;
+best.positionError = std::numeric_limits<double>::infinity();
+for (const Vec6 &seed : seeds) {            // e.g. a coarse grid over α
+    robot.setConfiguration(seed);
+    bvp_type g{};
+    const IKResult ik = robot.solveIK(target, tol, g);
+    if (ik.positionError < best.positionError) { best = ik; guess = g; }
+    if (ik) break;
+}
+std::ignore = robot.actuate(best.q, guess); // leave the robot at the best one
+@endcode
+
+@subsection usage_jacobian The kinematic Jacobian
+
+CTR::kinematicJacobian returns the 3×6 matrix dtip/dq at the current,
+solved configuration — useful for your own controllers, manipulability
+analysis or velocity-level planning:
+
+@code{.cpp}
+if (robot.actuate(q, guess)) {
+    const Mat<3UL, 6UL> J = robot.kinematicJacobian(guess);
+}
+@endcode
+
+Columns 0–2 are per metre of β, columns 3–5 per radian of α.
+
+@section usage_loads 6. External loads
+
+A point force and/or moment at the tip, in the global frame, is applied on
+the next solve:
+
+@code{.cpp}
+robot.setDistalForce(Vec3{0.0, 0.0, -0.05});  // 50 mN pushing down [N]
+robot.setDistalMoment(Vec3{0.0, 0.0, 0.0});   // [N·m]
+auto fk = robot.actuate(q, guess);
+@endcode
+
+Unloaded robots use a cheaper 3-unknown formulation automatically; a
+non-zero load switches to the full 5-unknown problem (about 5/3 of the
+Jacobian cost). Set both loads back to zero to return to the fast path.
+
+@section usage_tuning 7. Accuracy and speed
+
+- **BVP tolerance** (constructor): the stopping criterion on the
+  non-dimensional residual. 1e-6 is plenty for position control; tightening
+  it costs a Newton iteration or so.
+- **Integration step** (CTR::setIntegrationStep, default 1 mm, accepted
+  range 0.01–10 mm, clamped): the model is integrated with fixed-step RK4.
+  At 1 mm the tip error is ~3×10⁻¹¹ m, so a *larger* step (e.g. 2–5 mm) is
+  a legitimate way to buy speed. The shape polylines have one point per step.
+- **Root finder** (ctr::RootFindingMethod): keep the default
+  `ModifiedNewtonRaphson`; it already falls back to the other methods on
+  difficult cold starts. The alternatives exist for cross-checking.
+- **Build**: the `release-native` preset (`-march=native` + LTO) is the
+  fastest configuration.
+
+@section usage_errors 8. Error handling at a glance
+
+| Situation | Behaviour |
+|-----------|-----------|
+| Invalid tube parameters | `std::invalid_argument` from the Tube constructor |
+| BVP does not converge   | CTR::actuate returns a false ctr::FKResult (no exception) |
+| IK target not reached   | CTR::solveIK returns a false ctr::IKResult with the best error; the robot is left at a feasible configuration |
+| NaN/Inf in a guess      | sanitized by solveIK; pass a finite guess to actuate (zero if in doubt) |
+| `CTR::setTube(idx, …)` with `idx >= 3` | undefined behaviour (precondition, not checked) |
+
+CTR::actuate accepts any q; it is your responsibility to pass physically
+meaningful configurations (see @ref conv_limits). solveIK only ever
+produces feasible ones.
+
+@section usage_threads 9. Copies, moves and threads
+
+ctr::CTR is a regular value type: copying yields a fully independent robot
+(including a fresh BVP solver), and moves are cheap. A single CTR object
+must not be used from two threads at once, because every kinematics call
+updates its internal state. For parallel work (e.g. multi-start IK or
+workspace sampling), give each thread its own copy:
+
+@code{.cpp}
+std::vector<CTR> robots(nThreads, robot);   // one copy per worker
+@endcode
+
+@section usage_trouble 10. Troubleshooting
+
+- **FK fails from a cold start.** Warm-start from a nearby solved
+  configuration and move towards the target in a few steps, reusing
+  `guess`. Very high pre-curvatures combined with long overlapping curved
+  sections can make the model genuinely bistable (snapping); no solver can
+  help there.
+- **IK returns `false` with a small but non-zero error.** The target may be
+  unreachable or on the workspace boundary; check `ik.positionError`. For
+  far targets, seed from a closer configuration or use multi-start
+  (@ref usage_multistart).
+- **IK is slow for large moves.** The step caps make the cost scale with
+  joint-space distance; this is by design. Raise the caps only if your robot
+  is much larger than the defaults assume.
+- **Shapes look stale.** Setters only store values — call CTR::actuate.
+*/

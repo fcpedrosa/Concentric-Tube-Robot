@@ -3,7 +3,8 @@ include(FetchContent)
 # Catch2 v3: prefer a system installation, fall back to FetchContent.
 FetchContent_Declare(Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-    GIT_TAG v3.7.1
+    GIT_TAG v3.16.0
+    SYSTEM # treat Catch2 headers as system headers under -Werror
     FIND_PACKAGE_ARGS 3)
 FetchContent_MakeAvailable(Catch2)
 

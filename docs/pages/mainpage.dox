@@ -6,44 +6,62 @@ three-tube concentric tube robot (CTR), based on the Cosserat-theory
 kinematic model of Rucker, Jones & Webster (*IEEE Transactions on Robotics*,
 2010).
 
+@image html CTR_Assembly.png "A three-tube CTR and its actuation unit" width=60%
+
 @section main_quickstart Quickstart
 
 @code{.cpp}
 #include <ctr/CTR.hpp>
+#include <iostream>
 
-using namespace ctr;
+int main()
+{
+    using namespace ctr;
 
-// Three tubes, innermost first. All quantities SI (m, Pa, 1/m).
-std::array<Tube, NUM_TUBES> tubes = {
-    Tube{{.OD = 0.92e-3, .ID = 0.80e-3, .E = 65e9, .G = 24.6e9,
-          .ls = 190e-3, .lc = 60e-3, .u_ast = {25.0, 0.0, 0.0}}},
-    Tube{{.OD = 1.10e-3, .ID = 0.97e-3, .E = 65e9, .G = 24.6e9,
-          .ls = 120e-3, .lc = 80e-3, .u_ast = {10.0, 0.0, 0.0}}},
-    Tube{{.OD = 1.40e-3, .ID = 1.20e-3, .E = 65e9, .G = 24.6e9,
-          .ls = 90e-3,  .lc = 40e-3, .u_ast = {7.14, 0.0, 0.0}}},
-};
+    // Three tubes, innermost first. All quantities SI (m, Pa, 1/m).
+    std::array<Tube, NUM_TUBES> tubes = {
+        Tube{{.OD = 0.92e-3, .ID = 0.80e-3, .E = 65e9, .G = 24.6e9,
+              .ls = 190e-3, .lc = 60e-3, .u_ast = {25.0, 0.0, 0.0}}},
+        Tube{{.OD = 1.10e-3, .ID = 0.97e-3, .E = 65e9, .G = 24.6e9,
+              .ls = 120e-3, .lc = 80e-3, .u_ast = {10.0, 0.0, 0.0}}},
+        Tube{{.OD = 1.40e-3, .ID = 1.20e-3, .E = 65e9, .G = 24.6e9,
+              .ls = 90e-3,  .lc = 40e-3, .u_ast = {7.14, 0.0, 0.0}}},
+    };
 
-// q = [β₁ β₂ β₃ | α₁ α₂ α₃]: retractions [m] (non-positive), rotations [rad].
-const blaze::StaticVector<double, 6UL> q = {-120e-3, -100e-3, -80e-3, 0, 0, 0};
+    // q = [β₁ β₂ β₃ | α₁ α₂ α₃]: retractions [m] (non-positive), rotations [rad].
+    const blaze::StaticVector<double, 6UL> q = {-120e-3, -100e-3, -80e-3, 0.0, 0.0, 0.0};
 
-CTR robot(std::move(tubes), q, 1e-6);
+    CTR robot(std::move(tubes), q, 1e-6);  // BVP tolerance 1e-6
 
-bvp_type guess{};                              // zero = valid cold start
-FKResult fk = robot.actuate(q, guess);         // forward kinematics
-if (fk)
-    auto tip = robot.tipPosition();            // [m]
+    // Forward kinematics. `guess` is updated in place: keep reusing it.
+    bvp_type guess{};                      // zero = valid cold start
+    const FKResult fk = robot.actuate(q, guess);
+    if (!fk)
+        return 1;
+    const blaze::StaticVector<double, 3UL> tip = robot.tipPosition();  // [m]
+    std::cout << "tip: " << blaze::trans(tip);
 
-IKResult ik = robot.solveIK(tip + blaze::StaticVector<double,3UL>{0, 5e-3, 0},
-                            5e-4, guess);      // inverse kinematics
-if (ik)
-    auto qSolution = ik.q;
+    // Inverse kinematics: move the tip 5 mm along +y, 0.5 mm tolerance.
+    const blaze::StaticVector<double, 3UL> target = tip + blaze::StaticVector<double, 3UL>{0.0, 5e-3, 0.0};
+    const IKResult ik = robot.solveIK(target, 5e-4, guess);
+    if (ik)
+        std::cout << "joints: " << blaze::trans(ik.q);
+    return ik ? 0 : 1;
+}
 @endcode
 
-@section main_pages Documentation pages
+Link against the `ctr::kinematics` CMake target (see @ref building).
+A longer, commented program is in the @ref fk_ik_demo.cpp "examples".
 
-- @ref conventions — units, frames, joint vector layout, state layout
-- @ref model — the Cosserat model, the shooting BVP, and the IK algorithm
-- @ref building — dependencies, building, testing, consuming the package
+@section main_pages Where to start
+
+| If you want to…                                   | Read |
+|---------------------------------------------------|------|
+| build the library or add it to your CMake project | @ref building |
+| learn the API task by task (FK, IK, shapes, loads, tuning, troubleshooting) | @ref usage |
+| know the units, frames and vector layouts         | @ref conventions |
+| understand the model and the numerical methods    | @ref model |
+| look up a class or function                       | ctr::CTR, ctr::Tube, ctr::FKResult, ctr::IKResult, ctr::IKOptions, and the ctr namespace |
 
 @section main_design Design highlights
 
@@ -54,8 +72,8 @@ if (ik)
   fixed-step RK4 (default 1 mm; tip accuracy ≈ 3×10⁻¹¹ m for tabletop-scale
   robots). Determinism is a feature: the finite-difference Jacobians rely on
   truncation-error cancellation between nominal and perturbed shots.
-- **Exact task Jacobian.** CTR::kinematicJacobian differentiates on the BVP
-  equilibrium manifold via the implicit function theorem — not at frozen
+- **Exact task Jacobian.** ctr::CTR::kinematicJacobian differentiates on the
+  BVP equilibrium manifold via the implicit function theorem — not at frozen
   shooting variables.
 - **No hidden global state, no LAPACK/BLAS dependency.** Only Boost.Odeint
   (header-only) and Blaze.
@@ -65,4 +83,13 @@ if (ik)
 D. C. Rucker, B. A. Jones and R. J. Webster III, "A Geometrically Exact
 Model for Externally Loaded Concentric-Tube Continuum Robots,"
 IEEE Transactions on Robotics, vol. 26, no. 5, pp. 769-780, 2010.
+*/
+
+/**
+@example fk_ik_demo.cpp
+
+Complete runnable program: builds a Nitinol three-tube robot, solves forward
+kinematics from a cold start, then uses inverse kinematics to steer the tip
+to a verified-reachable target, timing both. Built as `ctr_demo`
+(`./build/release/bin/ctr_demo`).
 */
